@@ -437,14 +437,29 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // --- NEW: Form Configuration Handlers ---
+    // --- Enhanced Form Configuration Handlers ---
+    let currentFields = [];
+    let currentSections = [];
 
     async function openFormConfigModal() {
         try {
-            const response = await fetch('/api/form/config');
-            if (!response.ok) throw new Error('Failed to fetch form configuration.');
-            const fields = await response.json();
-            populateFieldList(fields);
+            const [fieldsResponse, sectionsResponse] = await Promise.all([
+                fetch('/api/form/config'),
+                fetch('/api/form/sections')
+            ]);
+            
+            if (!fieldsResponse.ok) throw new Error('Failed to fetch form configuration.');
+            if (!sectionsResponse.ok) throw new Error('Failed to fetch sections.');
+            
+            currentFields = await fieldsResponse.json();
+            currentSections = await sectionsResponse.json();
+            
+            populateFieldList(currentFields);
+            populateSectionsList(currentSections);
+            populateExistingSections(currentSections);
+            populateSortableFields(currentFields);
+            populateValidationsTab(currentFields);
+            
             document.getElementById('form-config-modal').classList.remove('hidden');
         } catch (error) {
             alert(`Could not load form configuration: ${error.message}`);
@@ -458,18 +473,191 @@ document.addEventListener('DOMContentLoaded', function() {
 
         fields.forEach(field => {
             const tr = document.createElement('tr');
+            const fieldTypeBadge = `<span class="field-type-badge field-type-${field.type}">${field.type}</span>`;
             tr.innerHTML = `
-                <td class="py-2 px-4">${field.name}</td>
+                <td class="py-2 px-4 text-center">${field.field_order || 0}</td>
+                <td class="py-2 px-4 font-mono text-sm">${field.name}</td>
                 <td class="py-2 px-4">${field.label}</td>
-                <td class="py-2 px-4 capitalize">${field.type}</td>
+                <td class="py-2 px-4">${field.subsection || 'N/A'}</td>
+                <td class="py-2 px-4">${fieldTypeBadge}</td>
+                <td class="py-2 px-4 text-center">
+                    <input type="checkbox" ${field.required ? 'checked' : ''} 
+                           class="custom-checkbox field-required-toggle" 
+                           data-field-id="${field.id}" ${field.is_core ? 'disabled' : ''}>
+                </td>
                 <td class="py-2 px-4">
-                    ${!field.is_core ? `<button class="delete-field-btn text-red-500 hover:underline text-sm" data-field-id="${field.id}">Delete</button>` : '<span class="text-gray-400 text-sm">Core Field</span>'}
+                    <div class="flex space-x-2">
+                        <button class="edit-field-btn text-blue-500 hover:underline text-sm" data-field-id="${field.id}">Edit</button>
+                        ${!field.is_core ? `<button class="delete-field-btn text-red-500 hover:underline text-sm" data-field-id="${field.id}">Delete</button>` : '<span class="text-gray-400 text-sm">Core</span>'}
+                    </div>
                 </td>
             `;
             fieldListBody.appendChild(tr);
         });
 
+        // Add event listeners
         document.querySelectorAll('.delete-field-btn').forEach(btn => btn.addEventListener('click', handleDeleteField));
+        document.querySelectorAll('.edit-field-btn').forEach(btn => btn.addEventListener('click', handleEditField));
+        document.querySelectorAll('.field-required-toggle').forEach(toggle => toggle.addEventListener('change', handleRequiredToggle));
+    }
+
+    function populateSectionsList(sections = []) {
+        const sectionsList = document.getElementById('sections-list');
+        if (!sectionsList) return;
+        sectionsList.innerHTML = '';
+
+        sections.forEach(section => {
+            const div = document.createElement('div');
+            div.className = 'section-item';
+            div.innerHTML = `
+                <span class="font-medium">${section}</span>
+                <button class="text-red-500 hover:underline text-sm rename-section-btn" data-section="${section}">Rename</button>
+            `;
+            sectionsList.appendChild(div);
+        });
+
+        document.querySelectorAll('.rename-section-btn').forEach(btn => btn.addEventListener('click', handleRenameSection));
+    }
+
+    function populateExistingSections(sections = []) {
+        const datalists = ['existing-sections', 'existing-sections-edit'];
+        datalists.forEach(id => {
+            const datalist = document.getElementById(id);
+            if (datalist) {
+                datalist.innerHTML = '';
+                sections.forEach(section => {
+                    const option = document.createElement('option');
+                    option.value = section;
+                    datalist.appendChild(option);
+                });
+            }
+        });
+    }
+
+    function populateSortableFields(fields = []) {
+        const sortableContainer = document.getElementById('sortable-fields');
+        if (!sortableContainer) return;
+        sortableContainer.innerHTML = '';
+
+        const sortedFields = [...fields].sort((a, b) => (a.field_order || 0) - (b.field_order || 0));
+        
+        sortedFields.forEach(field => {
+            const div = document.createElement('div');
+            div.className = 'sortable-field-item';
+            div.draggable = true;
+            div.dataset.fieldId = field.id;
+            div.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <i class="fas fa-grip-vertical drag-handle mr-3"></i>
+                        <span class="font-medium">${field.label}</span>
+                        <span class="ml-2 text-sm text-gray-500">(${field.name})</span>
+                    </div>
+                    <span class="field-type-badge field-type-${field.type}">${field.type}</span>
+                </div>
+            `;
+            sortableContainer.appendChild(div);
+        });
+
+        // Add drag and drop functionality
+        initializeDragAndDrop();
+    }
+
+    function populateValidationsTab(fields = []) {
+        const validationsContainer = document.getElementById('validations-container');
+        if (!validationsContainer) return;
+        validationsContainer.innerHTML = '';
+
+        fields.forEach(field => {
+            const div = document.createElement('div');
+            div.className = 'validation-field';
+            const validations = field.validations ? JSON.parse(field.validations) : {};
+            
+            div.innerHTML = `
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <h5 class="font-medium">${field.label}</h5>
+                        <p class="text-sm text-gray-500">${field.name} (${field.type})</p>
+                    </div>
+                    <span class="field-type-badge field-type-${field.type}">${field.type}</span>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Min Length</label>
+                        <input type="number" class="modal-input validation-input" 
+                               data-field-id="${field.id}" data-rule="minLength" 
+                               value="${validations.minLength || ''}" placeholder="e.g., 3">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Max Length</label>
+                        <input type="number" class="modal-input validation-input" 
+                               data-field-id="${field.id}" data-rule="maxLength" 
+                               value="${validations.maxLength || ''}" placeholder="e.g., 50">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Pattern (RegEx)</label>
+                        <input type="text" class="modal-input validation-input" 
+                               data-field-id="${field.id}" data-rule="pattern" 
+                               value="${validations.pattern || ''}" placeholder="e.g., ^[0-9]+$">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Custom Error Message</label>
+                        <input type="text" class="modal-input validation-input" 
+                               data-field-id="${field.id}" data-rule="errorMessage" 
+                               value="${validations.errorMessage || ''}" placeholder="Custom validation error message">
+                    </div>
+                </div>
+            `;
+            validationsContainer.appendChild(div);
+        });
+
+        // Add validation input listeners
+        document.querySelectorAll('.validation-input').forEach(input => {
+            input.addEventListener('change', handleValidationChange);
+        });
+    }
+
+    function initializeDragAndDrop() {
+        const sortableItems = document.querySelectorAll('.sortable-field-item');
+        
+        sortableItems.forEach(item => {
+            item.addEventListener('dragstart', handleDragStart);
+            item.addEventListener('dragover', handleDragOver);
+            item.addEventListener('drop', handleDrop);
+            item.addEventListener('dragend', handleDragEnd);
+        });
+    }
+
+    function handleDragStart(e) {
+        e.target.classList.add('dragging');
+        e.dataTransfer.setData('text/plain', e.target.dataset.fieldId);
+    }
+
+    function handleDragOver(e) {
+        e.preventDefault();
+    }
+
+    function handleDrop(e) {
+        e.preventDefault();
+        const draggedId = e.dataTransfer.getData('text/plain');
+        const draggedElement = document.querySelector(`[data-field-id="${draggedId}"]`);
+        const targetElement = e.target.closest('.sortable-field-item');
+        
+        if (draggedElement && targetElement && draggedElement !== targetElement) {
+            const container = targetElement.parentNode;
+            const targetIndex = Array.from(container.children).indexOf(targetElement);
+            const draggedIndex = Array.from(container.children).indexOf(draggedElement);
+            
+            if (draggedIndex < targetIndex) {
+                container.insertBefore(draggedElement, targetElement.nextSibling);
+            } else {
+                container.insertBefore(draggedElement, targetElement);
+            }
+        }
+    }
+
+    function handleDragEnd(e) {
+        e.target.classList.remove('dragging');
     }
 
     async function handleAddField(event) {
@@ -478,6 +666,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const fieldNameInput = document.getElementById('new-field-name');
         const fieldLabelInput = document.getElementById('new-field-label');
         const fieldTypeInput = document.getElementById('new-field-type');
+        const fieldSubsectionInput = document.getElementById('new-field-subsection');
+        const fieldOptionsInput = document.getElementById('new-field-options');
+        const fieldRequiredInput = document.getElementById('new-field-required');
 
         const fieldName = fieldNameInput.value.trim().replace(/\s+/g, '_').toLowerCase();
         if (!fieldName) {
@@ -492,7 +683,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const response = await fetch('/api/form/config', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: fieldName, label: fieldLabelInput.value, type: fieldTypeInput.value }),
+                body: JSON.stringify({ 
+                    name: fieldName, 
+                    label: fieldLabelInput.value, 
+                    type: fieldTypeInput.value,
+                    subsection: fieldSubsectionInput.value,
+                    options: fieldOptionsInput.value,
+                    required: fieldRequiredInput.checked
+                }),
             });
             const result = await response.json();
             if (!response.ok) throw new Error(result.error || 'Failed to add field.');
@@ -500,10 +698,58 @@ document.addEventListener('DOMContentLoaded', function() {
             feedbackEl.textContent = result.message;
             feedbackEl.className = 'text-sm mt-2 text-green-600';
             document.getElementById('add-field-form').reset();
-            openFormConfigModal(); // Refresh the list
+            toggleOptionsContainer(); // Reset options visibility
+            openFormConfigModal(); // Refresh the modal
         } catch (error) {
             feedbackEl.textContent = `Error: ${error.message}`;
             feedbackEl.className = 'text-sm mt-2 text-red-600';
+        }
+    }
+
+    async function handleEditField(event) {
+        const fieldId = event.target.dataset.fieldId;
+        const field = currentFields.find(f => f.id == fieldId);
+        if (!field) return;
+
+        // Populate edit modal
+        document.getElementById('edit-field-id').value = field.id;
+        document.getElementById('edit-field-label').value = field.label;
+        document.getElementById('edit-field-type').value = field.type;
+        document.getElementById('edit-field-subsection').value = field.subsection || '';
+        document.getElementById('edit-field-options').value = field.options || '';
+        document.getElementById('edit-field-required').checked = field.required;
+        document.getElementById('edit-field-validations').value = field.validations || '{}';
+
+        // Show/hide options container based on field type
+        toggleEditOptionsContainer();
+
+        document.getElementById('field-edit-modal').classList.remove('hidden');
+    }
+
+    async function handleSaveFieldEdit() {
+        const fieldId = document.getElementById('edit-field-id').value;
+        const data = {
+            label: document.getElementById('edit-field-label').value,
+            type: document.getElementById('edit-field-type').value,
+            subsection: document.getElementById('edit-field-subsection').value,
+            options: document.getElementById('edit-field-options').value,
+            required: document.getElementById('edit-field-required').checked,
+            validations: document.getElementById('edit-field-validations').value
+        };
+
+        try {
+            const response = await fetch(`/api/form/config/${fieldId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'Failed to update field.');
+            
+            document.getElementById('field-edit-modal').classList.add('hidden');
+            openFormConfigModal(); // Refresh the modal
+        } catch (error) {
+            alert(`Could not update field: ${error.message}`);
         }
     }
 
@@ -515,10 +761,155 @@ document.addEventListener('DOMContentLoaded', function() {
             const response = await fetch(`/api/form/config/${fieldId}`, { method: 'DELETE' });
             const result = await response.json();
             if (!response.ok) throw new Error(result.error || 'Failed to delete field.');
-            openFormConfigModal(); // Refresh the list
+            openFormConfigModal(); // Refresh the modal
         } catch (error) {
             alert(`Could not delete field: ${error.message}`);
         }
+    }
+
+    async function handleRequiredToggle(event) {
+        const fieldId = event.target.dataset.fieldId;
+        const required = event.target.checked;
+
+        try {
+            const response = await fetch(`/api/form/config/${fieldId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ required })
+            });
+            if (!response.ok) throw new Error('Failed to update field.');
+        } catch (error) {
+            event.target.checked = !required; // Revert on error
+            alert(`Could not update field: ${error.message}`);
+        }
+    }
+
+    async function handleSaveFieldOrder() {
+        const sortableItems = document.querySelectorAll('.sortable-field-item');
+        const fieldOrders = Array.from(sortableItems).map((item, index) => [
+            parseInt(item.dataset.fieldId), 
+            index + 1
+        ]);
+
+        try {
+            const response = await fetch('/api/form/config/reorder', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ field_orders: fieldOrders })
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'Failed to reorder fields.');
+            
+            alert('Field order saved successfully!');
+            openFormConfigModal(); // Refresh to show new order
+        } catch (error) {
+            alert(`Could not save field order: ${error.message}`);
+        }
+    }
+
+    async function handleValidationChange(event) {
+        const fieldId = event.target.dataset.fieldId;
+        const rule = event.target.dataset.rule;
+        const value = event.target.value;
+
+        const field = currentFields.find(f => f.id == fieldId);
+        if (!field) return;
+
+        let validations = {};
+        try {
+            validations = JSON.parse(field.validations || '{}');
+        } catch (e) {
+            validations = {};
+        }
+
+        if (value) {
+            validations[rule] = rule === 'minLength' || rule === 'maxLength' ? parseInt(value) : value;
+        } else {
+            delete validations[rule];
+        }
+
+        try {
+            const response = await fetch(`/api/form/config/${fieldId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ validations: JSON.stringify(validations) })
+            });
+            if (!response.ok) throw new Error('Failed to update validation.');
+            
+            // Update local field data
+            field.validations = JSON.stringify(validations);
+        } catch (error) {
+            alert(`Could not update validation: ${error.message}`);
+        }
+    }
+
+    function handleRenameSection(event) {
+        const oldSection = event.target.dataset.section;
+        const newSection = prompt('Enter new section name:', oldSection);
+        if (!newSection || newSection === oldSection) return;
+
+        // Update all fields with this section
+        const updates = currentFields
+            .filter(f => f.subsection === oldSection)
+            .map(f => ({ id: f.id, subsection: newSection }));
+
+        if (updates.length === 0) {
+            alert('No fields found in this section.');
+            return;
+        }
+
+        // Bulk update fields with new section name
+        Promise.all(updates.map(update => 
+            fetch(`/api/form/config/${update.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ subsection: update.subsection })
+            })
+        )).then(() => {
+            openFormConfigModal(); // Refresh
+        }).catch(error => {
+            alert(`Could not rename section: ${error.message}`);
+        });
+    }
+
+    function toggleOptionsContainer() {
+        const typeSelect = document.getElementById('new-field-type');
+        const optionsContainer = document.getElementById('options-container');
+        const showOptions = ['select', 'radio', 'checkbox'].includes(typeSelect.value);
+        optionsContainer.classList.toggle('hidden', !showOptions);
+    }
+
+    function toggleEditOptionsContainer() {
+        const typeSelect = document.getElementById('edit-field-type');
+        const optionsContainer = document.getElementById('edit-options-container');
+        const showOptions = ['select', 'radio', 'checkbox'].includes(typeSelect.value);
+        optionsContainer.classList.toggle('hidden', !showOptions);
+    }
+
+    function initializeFormConfigTabs() {
+        const tabs = document.querySelectorAll('.form-config-tab');
+        const contents = document.querySelectorAll('.tab-content');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                // Remove active class from all tabs
+                tabs.forEach(t => {
+                    t.classList.remove('active', 'border-blue-500', 'text-blue-600');
+                    t.classList.add('border-transparent', 'text-gray-500');
+                });
+
+                // Add active class to clicked tab
+                tab.classList.add('active', 'border-blue-500', 'text-blue-600');
+                tab.classList.remove('border-transparent', 'text-gray-500');
+
+                // Hide all tab contents
+                contents.forEach(content => content.classList.add('hidden'));
+
+                // Show corresponding content
+                const tabId = tab.id.replace('tab-', 'tab-content-');
+                document.getElementById(tabId)?.classList.remove('hidden');
+            });
+        });
     }
     
     function downloadCSV() {
@@ -583,6 +974,7 @@ document.addEventListener('DOMContentLoaded', function() {
         setupModal('status-modal', 'status-management-btn', 'close-status-modal-btn', 'close-status-modal-btn-2');
         setupModal('user-management-modal', 'user-management-btn', 'close-user-modal-btn', 'close-user-modal-btn-2');
         setupModal('form-config-modal', 'form-config-btn', 'close-form-config-modal-btn', 'close-form-config-modal-btn-2');
+        setupModal('field-edit-modal', null, 'close-field-edit-modal-btn', 'close-field-edit-modal-btn-2');
 
         // --- Other Event Listeners ---
         document.querySelectorAll('.filter-select').forEach(sel => sel.addEventListener('change', fetchDataAndRender));
@@ -604,6 +996,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
         document.getElementById('add-viewer-form')?.addEventListener('submit', handleAddViewer);
         document.getElementById('add-field-form')?.addEventListener('submit', handleAddField);
+
+        // Form configuration event listeners
+        document.getElementById('new-field-type')?.addEventListener('change', toggleOptionsContainer);
+        document.getElementById('edit-field-type')?.addEventListener('change', toggleEditOptionsContainer);
+        document.getElementById('save-field-edit')?.addEventListener('click', handleSaveFieldEdit);
+        document.getElementById('save-field-order')?.addEventListener('click', handleSaveFieldOrder);
+        
+        // Initialize form config tabs
+        initializeFormConfigTabs();
 
         const columnSelectorBtn = document.getElementById('column-selector-btn');
         const columnSelectorDropdown = document.getElementById('column-selector-dropdown');

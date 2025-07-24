@@ -91,6 +91,9 @@ def init_db():
         if 'field_order' not in columns:
             print("Migrating form_config: Adding 'field_order' column...")
             cursor.execute("ALTER TABLE form_config ADD COLUMN field_order INTEGER DEFAULT 0")
+        if 'validations' not in columns:
+            print("Migrating form_config: Adding 'validations' column...")
+            cursor.execute("ALTER TABLE form_config ADD COLUMN validations TEXT DEFAULT '{}'")
 
 
         # --- Applications Table (Initially simple, will be altered by form config) ---
@@ -429,16 +432,27 @@ def add_form_field():
     field_type = data.get('type')
     subsection = data.get('subsection')
     options = data.get('options')
+    required = data.get('required', False)
+    validations = data.get('validations', '{}')  # JSON string for validation rules
 
     if not all([field_name, field_label, field_type, subsection]):
         return jsonify({"error": "Name, label, type, and subsection are required."}), 400
 
     conn = get_db_conn()
     try:
-        conn.execute(f"ALTER TABLE applications ADD COLUMN {field_name} TEXT")
-        conn.execute(
-            "INSERT INTO form_config (name, label, type, subsection, options, required) VALUES (?, ?, ?, ?, ?, ?)",
-            (field_name, field_label, field_type, subsection, options, data.get('required', False))
+        # Get the highest field_order to append at the end
+        cursor = conn.cursor()
+        cursor.execute("SELECT MAX(field_order) as max_order FROM form_config")
+        max_order = cursor.fetchone()['max_order'] or 0
+        new_order = max_order + 1
+
+        # Add column to applications table
+        cursor.execute(f"ALTER TABLE applications ADD COLUMN {field_name} TEXT")
+        
+        # Insert into form_config
+        cursor.execute(
+            "INSERT INTO form_config (name, label, type, subsection, options, required, validations, field_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (field_name, field_label, field_type, subsection, options, required, validations, new_order)
         )
         conn.commit()
         return jsonify({"success": True, "message": "Field added successfully."})
@@ -452,6 +466,39 @@ def add_form_field():
     except Exception as e:
         print(f"--- API ERROR in /api/form/config [POST] ---\n{traceback.format_exc()}")
         return jsonify({"error": "Server error while adding field.", "message": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/api/form/config/<int:field_id>', methods=['PUT'])
+def update_form_field(field_id):
+    if session.get('user_role') != 'admin': return jsonify({"error": "Admin access required."}), 403
+    data = request.json
+    
+    conn = get_db_conn()
+    try:
+        field = conn.execute("SELECT * FROM form_config WHERE id = ?", (field_id,)).fetchone()
+        if not field: return jsonify({"error": "Field not found."}), 404
+
+        # Update field configuration
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE form_config 
+            SET label = ?, type = ?, subsection = ?, options = ?, required = ?, validations = ?
+            WHERE id = ?
+        """, (
+            data.get('label', field['label']),
+            data.get('type', field['type']),
+            data.get('subsection', field['subsection']),
+            data.get('options', field['options']),
+            data.get('required', field['required']),
+            data.get('validations', field.get('validations', '{}')),
+            field_id
+        ))
+        conn.commit()
+        return jsonify({"success": True, "message": "Field updated successfully."})
+    except Exception as e:
+        print(f"--- API ERROR in /api/form/config [PUT] ---\n{traceback.format_exc()}")
+        return jsonify({"error": "Server error while updating field.", "message": str(e)}), 500
     finally:
         conn.close()
 
@@ -485,6 +532,56 @@ def delete_form_field(field_id):
         conn.rollback()
         print(f"--- API ERROR in /api/form/config [DELETE] ---\n{traceback.format_exc()}")
         return jsonify({"error": "Server error while deleting field.", "message": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/api/form/config/reorder', methods=['POST'])
+def reorder_form_fields():
+    if session.get('user_role') != 'admin': return jsonify({"error": "Admin access required."}), 403
+    field_orders = request.json.get('field_orders', [])
+    
+    conn = get_db_conn()
+    try:
+        cursor = conn.cursor()
+        for field_id, new_order in field_orders:
+            cursor.execute("UPDATE form_config SET field_order = ? WHERE id = ?", (new_order, field_id))
+        conn.commit()
+        return jsonify({"success": True, "message": "Field order updated successfully."})
+    except Exception as e:
+        print(f"--- API ERROR in /api/form/config/reorder ---\n{traceback.format_exc()}")
+        return jsonify({"error": "Server error while reordering fields.", "message": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/api/form/sections', methods=['GET'])
+def get_form_sections():
+    if session.get('user_role') != 'admin': return jsonify({"error": "Admin access required."}), 403
+    conn = get_db_conn()
+    sections = conn.execute("SELECT DISTINCT subsection FROM form_config WHERE subsection IS NOT NULL ORDER BY subsection").fetchall()
+    conn.close()
+    return jsonify([row['subsection'] for row in sections])
+
+@app.route('/api/form/config/bulk-update', methods=['POST'])
+def bulk_update_fields():
+    if session.get('user_role') != 'admin': return jsonify({"error": "Admin access required."}), 403
+    updates = request.json.get('updates', [])
+    
+    conn = get_db_conn()
+    try:
+        cursor = conn.cursor()
+        for update in updates:
+            field_id = update.get('id')
+            if field_id:
+                cursor.execute("""
+                    UPDATE form_config 
+                    SET required = ?, field_order = ?
+                    WHERE id = ?
+                """, (update.get('required', False), update.get('field_order', 0), field_id))
+        conn.commit()
+        return jsonify({"success": True, "message": "Fields updated successfully."})
+    except Exception as e:
+        print(f"--- API ERROR in /api/form/config/bulk-update ---\n{traceback.format_exc()}")
+        return jsonify({"error": "Server error while updating fields.", "message": str(e)}), 500
     finally:
         conn.close()
 
