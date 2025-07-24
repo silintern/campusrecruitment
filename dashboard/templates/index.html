@@ -200,40 +200,174 @@
 
     <!-- Form Configuration Modal -->
     <div id="form-config-modal" class="modal-backdrop hidden">
-        <div class="modal-content md:w-3/4 lg:w-2/3">
+        <div class="modal-content" style="max-width: 90vw; width: 90vw;">
             <div class="modal-header">
                 <h3 class="modal-title"><i class="fas fa-edit mr-2"></i>Form Field Configuration</h3>
                 <button id="close-form-config-modal-btn" class="modal-close-btn">&times;</button>
             </div>
             <div class="modal-body space-y-6">
-                <!-- Add New Field Form -->
-                <div class="bg-gray-50 p-4 rounded-lg border">
-                    <h4 class="font-semibold mb-3 text-gray-700">Add New Field</h4>
-                    <form id="add-field-form" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
-                        <div><label for="new-field-name" class="block text-sm font-medium text-gray-700">Field Name (no spaces)</label><input type="text" id="new-field-name" placeholder="e.g., mobile_number" required class="modal-input"></div>
-                        <div><label for="new-field-label" class="block text-sm font-medium text-gray-700">Field Label</label><input type="text" id="new-field-label" placeholder="e.g., Mobile Number" required class="modal-input"></div>
-                        <div><label for="new-field-subsection" class="block text-sm font-medium text-gray-700">Subsection</label><input type="text" id="new-field-subsection" placeholder="e.g., Personal Details" required class="modal-input"></div>
-                        <div><label for="new-field-type" class="block text-sm font-medium text-gray-700">Field Type</label>
-                            <select id="new-field-type" class="modal-input">
-                                <option value="text">Text</option><option value="email">Email</option><option value="tel">Telephone</option><option value="date">Date</option><option value="number">Number</option><option value="textarea">Text Area</option><option value="select">Dropdown</option><option value="radio">Radio Buttons</option>
-                            </select>
-                        </div>
-                        <div id="options-container" class="hidden md:col-span-2 lg:col-span-1"><label for="new-field-options" class="block text-sm font-medium text-gray-700">Options (comma-separated)</label><input type="text" id="new-field-options" placeholder="e.g., Yes, No" class="modal-input"></div>
-                        <button type="submit" class="action-btn bg-blue-600 hover:bg-blue-700 h-10">Add Field</button>
-                    </form>
-                    <div id="add-user-feedback" class="text-sm mt-2"></div>
+                <!-- Tabs for different configuration sections -->
+                <div class="border-b border-gray-200">
+                    <nav class="-mb-px flex space-x-8">
+                        <button id="tab-fields" class="form-config-tab py-2 px-1 border-b-2 border-blue-500 font-medium text-sm text-blue-600">Fields Management</button>
+                        <button id="tab-sections" class="form-config-tab py-2 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700">Sections & Order</button>
+                        <button id="tab-validations" class="form-config-tab py-2 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700">Validations</button>
+                    </nav>
                 </div>
-                <!-- Existing Fields List -->
-                <div class="overflow-auto max-h-72">
-                    <h4 class="font-semibold mb-2 text-gray-700">Existing Fields</h4>
-                    <table class="min-w-full bg-white">
-                        <thead class="bg-gray-100"><tr><th class="py-2 px-4 text-left font-semibold">Subsection</th><th class="py-2 px-4 text-left font-semibold">Label</th><th class="py-2 px-4 text-left font-semibold">Type</th><th class="py-2 px-4 text-left font-semibold">Actions</th></tr></thead>
-                        <tbody id="field-list-body" class="divide-y divide-gray-200"></tbody>
-                    </table>
+
+                <!-- Fields Management Tab -->
+                <div id="tab-content-fields" class="tab-content">
+                    <!-- Add New Field Form -->
+                    <div class="bg-gray-50 p-4 rounded-lg border mb-6">
+                        <h4 class="font-semibold mb-3 text-gray-700">Add New Field</h4>
+                        <form id="add-field-form" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                            <div>
+                                <label for="new-field-name" class="block text-sm font-medium text-gray-700">Field Name (no spaces)</label>
+                                <input type="text" id="new-field-name" placeholder="e.g., mobile_number" required class="modal-input">
+                            </div>
+                            <div>
+                                <label for="new-field-label" class="block text-sm font-medium text-gray-700">Field Label</label>
+                                <input type="text" id="new-field-label" placeholder="e.g., Mobile Number" required class="modal-input">
+                            </div>
+                            <div>
+                                <label for="new-field-subsection" class="block text-sm font-medium text-gray-700">Subsection</label>
+                                <input type="text" id="new-field-subsection" placeholder="e.g., Personal Details" required class="modal-input" list="existing-sections">
+                                <datalist id="existing-sections"></datalist>
+                            </div>
+                            <div>
+                                <label for="new-field-type" class="block text-sm font-medium text-gray-700">Field Type</label>
+                                <select id="new-field-type" class="modal-input">
+                                    <option value="text">Text</option>
+                                    <option value="email">Email</option>
+                                    <option value="tel">Telephone</option>
+                                    <option value="date">Date</option>
+                                    <option value="number">Number</option>
+                                    <option value="textarea">Text Area</option>
+                                    <option value="select">Dropdown</option>
+                                    <option value="radio">Radio Buttons</option>
+                                    <option value="checkbox">Checkbox</option>
+                                    <option value="file">File Upload</option>
+                                </select>
+                            </div>
+                            <div id="options-container" class="hidden md:col-span-2">
+                                <label for="new-field-options" class="block text-sm font-medium text-gray-700">Options (comma-separated)</label>
+                                <input type="text" id="new-field-options" placeholder="e.g., Yes, No" class="modal-input">
+                            </div>
+                            <div>
+                                <label class="flex items-center">
+                                    <input type="checkbox" id="new-field-required" class="mr-2">
+                                    <span class="text-sm font-medium text-gray-700">Required Field</span>
+                                </label>
+                            </div>
+                            <button type="submit" class="action-btn bg-blue-600 hover:bg-blue-700 h-10">Add Field</button>
+                        </form>
+                        <div id="add-field-feedback" class="text-sm mt-2"></div>
+                    </div>
+
+                    <!-- Existing Fields List -->
+                    <div class="overflow-auto max-h-96">
+                        <h4 class="font-semibold mb-2 text-gray-700">Existing Fields</h4>
+                        <table class="min-w-full bg-white">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="py-2 px-4 text-left font-semibold">Order</th>
+                                    <th class="py-2 px-4 text-left font-semibold">Name</th>
+                                    <th class="py-2 px-4 text-left font-semibold">Label</th>
+                                    <th class="py-2 px-4 text-left font-semibold">Subsection</th>
+                                    <th class="py-2 px-4 text-left font-semibold">Type</th>
+                                    <th class="py-2 px-4 text-left font-semibold">Required</th>
+                                    <th class="py-2 px-4 text-left font-semibold">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="field-list-body" class="divide-y divide-gray-200"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Sections & Order Tab -->
+                <div id="tab-content-sections" class="tab-content hidden">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="font-semibold mb-3 text-gray-700">Section Management</h4>
+                            <div class="bg-gray-50 p-4 rounded-lg border">
+                                <div id="sections-list" class="space-y-2"></div>
+                                <button id="add-section-btn" class="mt-3 action-btn bg-green-600 hover:bg-green-700 text-sm px-3 py-1">Add New Section</button>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold mb-3 text-gray-700">Field Ordering</h4>
+                            <div class="bg-gray-50 p-4 rounded-lg border">
+                                <div id="sortable-fields" class="space-y-2 max-h-96 overflow-y-auto"></div>
+                                <button id="save-field-order" class="mt-3 action-btn bg-blue-600 hover:bg-blue-700 text-sm px-3 py-1">Save Order</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Validations Tab -->
+                <div id="tab-content-validations" class="tab-content hidden">
+                    <h4 class="font-semibold mb-3 text-gray-700">Field Validations</h4>
+                    <div id="validations-container" class="space-y-4 max-h-96 overflow-y-auto"></div>
                 </div>
             </div>
             <div class="modal-footer">
+                <button id="bulk-update-btn" class="action-btn bg-purple-600 hover:bg-purple-700 mr-2">Bulk Update</button>
                 <button id="close-form-config-modal-btn-2" class="action-btn bg-gray-500 hover:bg-gray-600">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Field Edit Modal -->
+    <div id="field-edit-modal" class="modal-backdrop hidden">
+        <div class="modal-content md:w-1/2">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fas fa-edit mr-2"></i>Edit Field</h3>
+                <button id="close-field-edit-modal-btn" class="modal-close-btn">&times;</button>
+            </div>
+            <div class="modal-body space-y-4">
+                <input type="hidden" id="edit-field-id">
+                <div>
+                    <label for="edit-field-label" class="block text-sm font-medium text-gray-700">Field Label</label>
+                    <input type="text" id="edit-field-label" class="modal-input">
+                </div>
+                <div>
+                    <label for="edit-field-type" class="block text-sm font-medium text-gray-700">Field Type</label>
+                    <select id="edit-field-type" class="modal-input">
+                        <option value="text">Text</option>
+                        <option value="email">Email</option>
+                        <option value="tel">Telephone</option>
+                        <option value="date">Date</option>
+                        <option value="number">Number</option>
+                        <option value="textarea">Text Area</option>
+                        <option value="select">Dropdown</option>
+                        <option value="radio">Radio Buttons</option>
+                        <option value="checkbox">Checkbox</option>
+                        <option value="file">File Upload</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="edit-field-subsection" class="block text-sm font-medium text-gray-700">Subsection</label>
+                    <input type="text" id="edit-field-subsection" class="modal-input" list="existing-sections-edit">
+                    <datalist id="existing-sections-edit"></datalist>
+                </div>
+                <div id="edit-options-container" class="hidden">
+                    <label for="edit-field-options" class="block text-sm font-medium text-gray-700">Options (comma-separated)</label>
+                    <input type="text" id="edit-field-options" class="modal-input">
+                </div>
+                <div>
+                    <label class="flex items-center">
+                        <input type="checkbox" id="edit-field-required" class="mr-2">
+                        <span class="text-sm font-medium text-gray-700">Required Field</span>
+                    </label>
+                </div>
+                <div>
+                    <label for="edit-field-validations" class="block text-sm font-medium text-gray-700">Validation Rules (JSON)</label>
+                    <textarea id="edit-field-validations" class="modal-input" rows="3" placeholder='{"minLength": 5, "pattern": "^[0-9]+$"}'></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="save-field-edit" class="action-btn bg-blue-600 hover:bg-blue-700">Save Changes</button>
+                <button id="close-field-edit-modal-btn-2" class="action-btn bg-gray-500 hover:bg-gray-600">Cancel</button>
             </div>
         </div>
     </div>
