@@ -365,7 +365,7 @@
             try {
                 showLoadingState();
 
-                const response = await fetch('http://127.0.0.1:5000/api/public/form-config');
+                const response = await fetch('http://127.0.0.1:5001/api/public/form-config');
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
@@ -438,7 +438,12 @@
             const formSections = document.getElementById('form-sections');
             formSections.innerHTML = '';
 
+            console.log('Form config received:', formConfig);
+
+            // The backend should return sections in the correct order
+            // Object.entries preserves the order for modern JavaScript engines
             Object.entries(formConfig).forEach(([sectionName, fields], index) => {
+                console.log(`Rendering section: ${sectionName} with ${fields.length} fields`);
                 const sectionElement = createFormSection(sectionName, fields, index);
                 formSections.appendChild(sectionElement);
             });
@@ -473,7 +478,10 @@
             const grid = document.createElement('div');
             grid.className = 'section-grid grid grid-cols-1 lg:grid-cols-2 gap-8';
 
-            fields.forEach(field => {
+            // Sort fields by field_order before rendering
+            const sortedFields = [...fields].sort((a, b) => (a.field_order || 0) - (b.field_order || 0));
+
+            sortedFields.forEach(field => {
                 const fieldElement = createFormField(field);
                 if (fieldElement) {
                     if (field.type === 'textarea') {
@@ -1086,7 +1094,7 @@
 
                 try {
                     const formData = new FormData(event.target);
-                    const apiEndpoint = 'http://127.0.0.1:5000/api/submit_application';
+                    const apiEndpoint = 'http://127.0.0.1:5001/api/submit_application';
 
                     const response = await fetch(apiEndpoint, {
                         method: 'POST',
