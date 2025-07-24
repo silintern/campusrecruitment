@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adventz Campus Recruitment Form</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .form-section {
+            transition: all 0.3s ease-in-out;
+        }
+        .hidden-section {
+            display: none;
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        .visible-section {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+        input:read-only {
+            background-color: #f9fafb; /* Tailwind's gray-50 */
+            cursor: not-allowed;
+        }
+        /* Custom focus styles for better accessibility */
+        .form-input:focus {
+            outline: none;
+            --tw-ring-color: #6366f1; /* indigo-500 */
+            --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+            --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+            box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+            border-color: #6366f1;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+        <div class="max-w-4xl mx-auto bg-white p-8 sm:p-10 rounded-2xl shadow-xl">
+            
+            <div class="text-center mb-10">
+                <h1 class="text-4xl font-bold text-gray-900">Campus Recruitment Application</h1>
+                <p class="mt-3 text-base text-gray-600">Please fill out the form carefully and accurately.</p>
+            </div>
+
+            <form id="recruitment-form" enctype="multipart/form-data">
+                <div class="space-y-10">
+                    <!-- Personal Details Section -->
+                    <fieldset class="form-section bg-gray-50/70 p-6 rounded-lg">
+                        <legend class="text-xl font-semibold text-gray-800 pb-2 mb-6">Personal Details</legend>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                                <input type="text" name="name" id="name" class="form-input block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm" readonly>
+                            </div>
+                            <div>
+                                <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                                <input type="email" name="email" id="email" class="form-input block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm" readonly>
+                            </div>
+                            <div>
+                                <label for="dob" class="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
+                                <input type="date" name="dob" id="dob" class="form-input block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm" required>
+                            </div>
+                            <div>
+                                <label for="place_of_birth" class="block text-sm font-medium text-gray-700 mb-1">Place of Birth</label>
+                                <input type="text" name="place_of_birth" id="place_of_birth" class="form-input block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm">
+                            </div>
+                            <div>
+                                <label for="gender" class="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                                <select id="gender" name="gender" class="form-input block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm">
+                                    <option>Male</option>
+                                    <option>Female</option>
+                                    <option>Other</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="nationality" class="block text-sm font-medium text-gray-700 mb-1">Nationality</label>
+                                <input type="text" name="nationality" id="nationality" class="form-input block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm">
+                            </div>
+                            <div>
+                                <label for="father_name" class="block text-sm font-medium text-gray-700 mb-1">Father's Name</label>
+                                <input type="text" name="father_name" id="father_name" class="form-input block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm">
+                            </div>
+                            <div>
+                                <label for="blood_group" class="block text-sm font-medium text-gray-700 mb-1">Blood Group</label>
+                                <select id="blood_group" name="blood_group" class="form-input block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm">
+                                    <option>A+</option>
+                                    <option>A-</option>
+                                    <option>B+</option>
+                                    <option>B-</option>
+                                    <option>AB+</option>
+                                    <option>AB-</option>
+                                    <option>O+</option>
+                                    <option>O-</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="pan_card" class="block text-sm font-medium text-gray-700 mb-1">PAN Card Number</label>
+                                <input type="text" name="pan_card" id="pan_card" class="form-input block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm">
+                            </div>
+                             <div>
+                                <label for="marital_status" class="block text-sm font-medium text-gray-700 mb-1">Marital Status</label>
+                                <select id="marital_status" name="marital_status" class="form-input block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm" onchange="toggleSpouseDetails(this.value)">
+                                    <option>Single</option>
+                                    <option>Married</option>
+                                    <option>Divorced</option>
+                                    <option>Widowed</option>
+                                </select>
+                            </div>
+                        </div>
+                    </fieldset>
+                    
+                    <fieldset id="spouse-details-section" class="form-section hidden-section bg-gray-50/70 p-6 rounded-lg">
+                        <legend class="text-xl font-semibold text-gray-800 pb-2 mb-6">Spouse's Details</legend>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <input type="text" name="spouse_name" id="spouse_name" placeholder="Spouse's Name" class="form-input block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm">
+                            <input type="text" name="spouse_employment" id="spouse_employment" placeholder="Spouse's Employment Status" class="form-input block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm">
+                            <div class="md:col-span-2">
+                                <textarea id="spouse_work_details" name="spouse_work_details" rows="3" class="form-input block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm" placeholder="If spouse is working, provide details"></textarea>
+                            </div>
+                            <input type="number" name="children_count" id="children_count" placeholder="Number of Children" class="form-input block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm" min="0">
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="form-section bg-gray-50/70 p-6 rounded-lg">
+                        <legend class="text-xl font-semibold text-gray-800 pb-2 mb-6">Contact & Position</legend>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <input type="tel" name="mobile_number" id="mobile_number" placeholder="Mobile Number" class="form-input block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm" required>
+                            <select id="business_entity" name="business_entity" class="form-input block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm">
+                                <option disabled selected>Select Business Entity</option>
+                                <option>SIL</option><option>ZIL</option><option>ZMSL</option><option>ZIIL</option>
+                            </select>
+                            <div class="md:col-span-2">
+                                <select id="post_applying_for" name="post_applying_for" class="form-input block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm">
+                                    <option disabled selected>Select Post Applying For</option>
+                                    <option>Intern</option><option>Civil Engineer</option><option>Graduate Engineer Trainee</option><option>Software Developer Trainee</option><option>Data Analyst Trainee</option><option>Business Development Executive</option><option>Human Resources Trainee</option><option>Marketing Trainee</option>
+                                </select>
+                            </div>
+                            <div class="md:col-span-2">
+                                <select id="location_of_position" name="location_of_position" class="form-input block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm">
+                                    <option disabled selected>Select Location of Position</option>
+                                    <option>Gurugram</option><option>Pune</option><option>Banglore</option>
+                                </select>
+                            </div>
+                            <div class="md:col-span-2">
+                                <textarea id="present_address" name="present_address" rows="3" placeholder="Present Address" class="form-input block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm" required></textarea>
+                            </div>
+                            <div class="md:col-span-2">
+                                <textarea id="permanent_address" name="permanent_address" rows="3" placeholder="Permanent Address" class="form-input block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm"></textarea>
+                            </div>
+                            <div class="md:col-span-2">
+                                <input type="text" name="hobbies" id="hobbies" placeholder="Hobbies / Leisure Activities" class="form-input block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm">
+                            </div>
+                        </div>
+                    </fieldset>
+                    
+                    <fieldset class="form-section bg-gray-50/70 p-6 rounded-lg">
+                        <legend class="text-xl font-semibold text-gray-800 pb-2 mb-6">Academic Qualifications</legend>
+                        <div class="space-y-6">
+                            <div class="p-4 border rounded-md bg-white">
+                                <h4 class="font-medium text-gray-700 mb-4">10th Standard</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    <input type="text" name="qualification_10th_school" placeholder="School/College Name" class="form-input block w-full px-3 py-2 border-gray-300 rounded-md">
+                                    <input type="text" name="qualification_10th_board" placeholder="Board" class="form-input block w-full px-3 py-2 border-gray-300 rounded-md">
+                                    <input type="text" name="qualification_10th_subjects" placeholder="Main Subjects" class="form-input block w-full px-3 py-2 border-gray-300 rounded-md">
+                                    <input type="text" name="qualification_10th_year" placeholder="Year of Passing" class="form-input block w-full px-3 py-2 border-gray-300 rounded-md">
+                                    <input type="text" name="qualification_10th_marks" placeholder="% Marks / CGPA" class="form-input block w-full px-3 py-2 border-gray-300 rounded-md">
+                                    <input type="text" name="qualification_10th_division" placeholder="Division / Class" class="form-input block w-full px-3 py-2 border-gray-300 rounded-md">
+                                </div>
+                            </div>
+                            <div class="p-4 border rounded-md bg-white">
+                                <h4 class="font-medium text-gray-700 mb-4">12th Standard</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    <input type="text" name="qualification_12th_school" placeholder="School/College Name" class="form-input block w-full px-3 py-2 border-gray-300 rounded-md">
+                                    <input type="text" name="qualification_12th_board" placeholder="Board/University" class="form-input block w-full px-3 py-2 border-gray-300 rounded-md">
+                                    <input type="text" name="qualification_12th_specialization" placeholder="Course Specialization" class="form-input block w-full px-3 py-2 border-gray-300 rounded-md">
+                                    <input type="text" name="qualification_12th_year" placeholder="Year of Passing" class="form-input block w-full px-3 py-2 border-gray-300 rounded-md">
+                                    <input type="text" name="qualification_12th_marks" placeholder="% Marks / CGPA" class="form-input block w-full px-3 py-2 border-gray-300 rounded-md">
+                                    <input type="text" name="qualification_12th_division" placeholder="Division / Class" class="form-input block w-full px-3 py-2 border-gray-300 rounded-md">
+                                </div>
+                            </div>
+                            <div class="p-4 border rounded-md bg-white">
+                                <h4 class="font-medium text-gray-700 mb-4">Graduation</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    <input type="text" name="qualification_grad_school" placeholder="Institute/College Name" class="form-input block w-full px-3 py-2 border-gray-300 rounded-md">
+                                    <input type="text" name="qualification_grad_course" placeholder="Course" class="form-input block w-full px-3 py-2 border-gray-300 rounded-md">
+                                    <input type="text" name="qualification_grad_specialization" placeholder="Course Specialization" class="form-input block w-full px-3 py-2 border-gray-300 rounded-md">
+                                    <input type="text" name="qualification_grad_year" placeholder="Year of Passing" class="form-input block w-full px-3 py-2 border-gray-300 rounded-md">
+                                    <input type="text" name="qualification_grad_marks" placeholder="% Marks / CGPA" class="form-input block w-full px-3 py-2 border-gray-300 rounded-md">
+                                    <input type="text" name="qualification_grad_division" placeholder="Division / Class" class="form-input block w-full px-3 py-2 border-gray-300 rounded-md">
+                                </div>
+                            </div>
+                            <div class="p-4 border rounded-md bg-white">
+                                <h4 class="font-medium text-gray-700 mb-4">Post Graduation (If Applicable)</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    <input type="text" name="qualification_pg_school" placeholder="Institute/College Name" class="form-input block w-full px-3 py-2 border-gray-300 rounded-md">
+                                    <input type="text" name="qualification_pg_course" placeholder="Course" class="form-input block w-full px-3 py-2 border-gray-300 rounded-md">
+                                    <input type="text" name="qualification_pg_specialization" placeholder="Course Specialization" class="form-input block w-full px-3 py-2 border-gray-300 rounded-md">
+                                    <input type="text" name="qualification_pg_year" placeholder="Year of Passing" class="form-input block w-full px-3 py-2 border-gray-300 rounded-md">
+                                    <input type="text" name="qualification_pg_marks" placeholder="% Marks / CGPA" class="form-input block w-full px-3 py-2 border-gray-300 rounded-md">
+                                    <input type="text" name="qualification_pg_division" placeholder="Division / Class" class="form-input block w-full px-3 py-2 border-gray-300 rounded-md">
+                                </div>
+                            </div>
+                        </div>
+                    </fieldset>
+                    
+                    <fieldset class="form-section bg-gray-50/70 p-6 rounded-lg">
+                        <legend class="text-xl font-semibold text-gray-800 pb-2 mb-6">CV / Resume Upload</legend>
+                        <div>
+                            <label for="cv-resume" class="block text-sm font-medium text-gray-700 mb-1">Add your CV/Resume</label>
+                            <input type="file" name="cv-resume" id="cv-resume" accept=".pdf" required class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200 transition-colors duration-300">
+                            <p class="text-xs text-gray-500 mt-1">PDF format only. Maximum file size: 5MB. Only one file can be uploaded.</p>
+                            <div id="file-info" class="hidden mt-2 text-sm text-gray-600 font-medium bg-indigo-50 p-2 rounded-md border border-indigo-200"></div>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="form-section bg-gray-50/70 p-6 rounded-lg">
+                        <legend class="text-xl font-semibold text-gray-800 pb-2 mb-6">Additional Information</legend>
+                        <div class="space-y-6">
+                            <div class="p-4 rounded-md bg-white border">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Have you applied for any position with us earlier?</label>
+                                <div class="flex items-center space-x-6">
+                                    <label for="applied-yes" class="flex items-center"><input id="applied-yes" name="previously_applied" type="radio" value="Yes" class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"><span class="ml-2 text-sm text-gray-900">Yes</span></label>
+                                    <label for="applied-no" class="flex items-center"><input id="applied-no" name="previously_applied" type="radio" value="No" class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500" checked><span class="ml-2 text-sm text-gray-900">No</span></label>
+                                </div>
+                            </div>
+                            <div class="p-4 rounded-md bg-white border">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Are you related to any employee?</label>
+                                <div class="flex items-center space-x-6">
+                                    <label for="related-yes" class="flex items-center"><input id="related-yes" name="related_employee" type="radio" value="Yes" class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500" onchange="toggleRelatedDetails(true)"><span class="ml-2 text-sm text-gray-900">Yes</span></label>
+                                    <label for="related-no" class="flex items-center"><input id="related-no" name="related_employee" type="radio" value="No" class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500" onchange="toggleRelatedDetails(false)" checked><span class="ml-2 text-sm text-gray-900">No</span></label>
+                                </div>
+                            </div>
+                            <div id="related-details-section" class="hidden-section pl-6 mt-4 border-l-4 border-indigo-200">
+                                <textarea id="related_employee_details" name="related_employee_details" rows="2" class="form-input block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm" placeholder="Please provide employee's Name and Designation"></textarea>
+                            </div>
+                            <div class="p-4 rounded-md bg-white border">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Are there any criminal/civil cases against you?</label>
+                                <div class="flex items-center space-x-6">
+                                    <label for="cases-yes" class="flex items-center"><input id="cases-yes" name="legal_cases" type="radio" value="Yes" class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500" onchange="toggleLegalDetails(true)"><span class="ml-2 text-sm text-gray-900">Yes</span></label>
+                                    <label for="cases-no" class="flex items-center"><input id="cases-no" name="legal_cases" type="radio" value="No" class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500" onchange="toggleLegalDetails(false)" checked><span class="ml-2 text-sm text-gray-900">No</span></label>
+                                </div>
+                            </div>
+                            <div id="legal-details-section" class="hidden-section pl-6 mt-4 border-l-4 border-indigo-200">
+                                <textarea id="legal_cases_details" name="legal_cases_details" rows="3" class="form-input block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm" placeholder="Please provide details of any ongoing or past legal cases"></textarea>
+                            </div>
+                        </div>
+                    </fieldset>
+                </div>
+
+                <div class="mt-12 pt-6 border-t border-gray-200">
+                    <div class="flex justify-end space-x-4">
+                        <button type="button" class="px-6 py-3 rounded-lg text-sm font-medium bg-gray-200 text-gray-800 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors duration-300">Cancel</button>
+                        <button type="submit" class="inline-flex justify-center px-8 py-3 border border-transparent shadow-lg text-base font-medium rounded-lg text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transform hover:scale-105 transition-transform duration-300">
+                            Submit Application
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        window.onload = function() {
+            // Populate user details from localStorage
+            const userName = localStorage.getItem('recruitmentUserName');
+            const userEmail = localStorage.getItem('recruitmentUserEmail');
+            if (userName && userEmail) {
+                document.getElementById('name').value = userName;
+                document.getElementById('email').value = userEmail;
+            } else {
+                // If no user details, redirect to login
+                alert('You must create a profile to access this page.');
+                window.location.href = 'login.html';
+            }
+        };
+
+        // Handle file input change to show file name
+        document.getElementById('cv-resume').addEventListener('change', function() {
+            const fileInfoDiv = document.getElementById('file-info');
+            if (this.files.length > 0) {
+                const file = this.files[0];
+                fileInfoDiv.textContent = `Selected file: ${file.name}`;
+                fileInfoDiv.classList.remove('hidden');
+            } else {
+                fileInfoDiv.classList.add('hidden');
+                fileInfoDiv.textContent = '';
+            }
+        });
+
+        // Handle form submission
+        document.getElementById('recruitment-form').addEventListener('submit', async function(event) {
+            event.preventDefault();
+
+            // --- Client-side validation ---
+            const cvInput = document.getElementById('cv-resume');
+            if (cvInput.files.length !== 1) {
+                alert('Please select one CV/Resume file to submit.');
+                return;
+            }
+            const file = cvInput.files[0];
+            const maxSize = 5 * 1024 * 1024; // 5MB
+            if (file.size > maxSize) {
+                alert('File size exceeds the 5MB limit. Please upload a smaller file.');
+                return;
+            }
+
+            // --- Prepare data for API ---
+            const formData = new FormData(this);
+            
+            // **MODIFICATION**: Use the full, absolute URL for the API endpoint.
+            // This makes the form independent of the dashboard.
+            const apiEndpoint = 'http://127.0.0.1:5000/api/submit_application';
+
+            try {
+                const response = await fetch(apiEndpoint, {
+                    method: 'POST',
+                    body: formData, // Send the form data directly
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    alert('Application submitted successfully!');
+                    localStorage.removeItem('recruitmentUserName');
+                    localStorage.removeItem('recruitmentUserEmail');
+                    window.location.href = 'login.html'; // Redirect to login page
+                } else {
+                    // Show error message from the server
+                    alert(`Error: ${result.error || 'An unknown error occurred.'}`);
+                }
+            } catch (error) {
+                console.error('Submission Error:', error);
+                alert('An error occurred while submitting the form. Please check the console and ensure the backend server is running.');
+            }
+        });
+
+        // --- UI toggle functions ---
+        function toggleSpouseDetails(status) {
+            const spouseSection = document.getElementById('spouse-details-section');
+            if (status === 'Married') {
+                spouseSection.classList.remove('hidden-section');
+                spouseSection.classList.add('visible-section');
+            } else {
+                spouseSection.classList.add('hidden-section');
+                spouseSection.classList.remove('visible-section');
+            }
+        }
+
+        function toggleRelatedDetails(isRelated) {
+            const relatedSection = document.getElementById('related-details-section');
+            if (isRelated) {
+                relatedSection.classList.remove('hidden-section');
+                relatedSection.classList.add('visible-section');
+            } else {
+                relatedSection.classList.add('hidden-section');
+                relatedSection.classList.remove('visible-section');
+            }
+        }
+        
+        function toggleLegalDetails(hasCases) {
+            const legalSection = document.getElementById('legal-details-section');
+            if (hasCases) {
+                legalSection.classList.remove('hidden-section');
+                legalSection.classList.add('visible-section');
+            } else {
+                legalSection.classList.add('hidden-section');
+                legalSection.classList.remove('visible-section');
+            }
+        }
+    </script>
+</body>
+</html>

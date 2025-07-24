@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recruitment Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="bg-gray-100 font-sans">
+
+    <!-- Main Container -->
+    <div class="flex h-screen bg-gray-100">
+
+        <!-- Left Sidebar (Unchanged) -->
+        <aside class="w-64 bg-white shadow-md flex flex-col">
+            <div class="p-4 border-b flex justify-between items-center">
+                <h1 class="text-xl font-bold text-gray-800">Filters</h1>
+                <button id="reset-filters-btn" class="text-sm text-blue-500 hover:underline">Reset</button>
+            </div>
+            <div id="filters-container" class="flex-grow p-4 overflow-y-auto">
+                <!-- Date Range Filter -->
+                <div class="py-2 border-b">
+                    <button type="button" class="collapsible-btn flex justify-between items-center w-full text-left text-sm font-medium text-gray-800 hover:bg-gray-50 p-2 rounded-md">
+                        <span>Date Range</span>
+                        <svg class="h-5 w-5 transform transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                    </button>
+                    <div class="collapsible-content hidden mt-2 pl-2 space-y-2">
+                        <div>
+                            <label for="start-date-filter" class="block text-xs font-medium text-gray-600">Start Date</label>
+                            <input type="date" id="start-date-filter" name="start_date" class="filter-select mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm">
+                        </div>
+                        <div>
+                            <label for="end-date-filter" class="block text-xs font-medium text-gray-600">End Date</label>
+                            <input type="date" id="end-date-filter" name="end_date" class="filter-select mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm">
+                        </div>
+                    </div>
+                </div>
+                <!-- Other Filters -->
+                <div class="py-2 border-b">
+                    <button type="button" class="collapsible-btn flex justify-between items-center w-full text-left text-sm font-medium text-gray-800 hover:bg-gray-50 p-2 rounded-md"><span>Location</span><svg class="h-5 w-5 transform transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg></button>
+                    <div class="collapsible-content hidden mt-2 pl-2"><select id="location-filter" name="location" class="filter-select mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm"><option value="all">All Locations</option></select></div>
+                </div>
+                <div class="py-2 border-b">
+                    <button type="button" class="collapsible-btn flex justify-between items-center w-full text-left text-sm font-medium text-gray-800 hover:bg-gray-50 p-2 rounded-md"><span>Post Applying For</span><svg class="h-5 w-5 transform transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg></button>
+                    <div class="collapsible-content hidden mt-2 pl-2"><select id="post-filter" name="post" class="filter-select mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm"><option value="all">All Posts</option></select></div>
+                </div>
+                <div class="py-2 border-b">
+                    <button type="button" class="collapsible-btn flex justify-between items-center w-full text-left text-sm font-medium text-gray-800 hover:bg-gray-50 p-2 rounded-md"><span>Highest Qualification</span><svg class="h-5 w-5 transform transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg></button>
+                    <div class="collapsible-content hidden mt-2 pl-2"><select id="qualification-filter" name="qualification" class="filter-select mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm"><option value="all">All Qualifications</option></select></div>
+                </div>
+                <div class="py-2 border-b">
+                    <button type="button" class="collapsible-btn flex justify-between items-center w-full text-left text-sm font-medium text-gray-800 hover:bg-gray-50 p-2 rounded-md"><span>Business Entity</span><svg class="h-5 w-5 transform transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg></button>
+                    <div class="collapsible-content hidden mt-2 pl-2"><select id="business-entity-filter" name="business_entity" class="filter-select mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm"><option value="all">All Entities</option></select></div>
+                </div>
+                <div class="py-2 border-b">
+                    <button type="button" class="collapsible-btn flex justify-between items-center w-full text-left text-sm font-medium text-gray-800 hover:bg-gray-50 p-2 rounded-md"><span>Degree Course</span><svg class="h-5 w-5 transform transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg></button>
+                    <div class="collapsible-content hidden mt-2 pl-2"><select id="course-filter" name="course" class="filter-select mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm"><option value="all">All Courses</option></select></div>
+                </div>
+                 <div class="py-2 border-b">
+                    <button type="button" class="collapsible-btn flex justify-between items-center w-full text-left text-sm font-medium text-gray-800 hover:bg-gray-50 p-2 rounded-md"><span>College</span><svg class="h-5 w-5 transform transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg></button>
+                    <div class="collapsible-content hidden mt-2 pl-2"><select id="college-filter" name="college" class="filter-select mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm"><option value="all">All Colleges</option></select></div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 flex flex-col overflow-hidden relative">
+            <!-- Header -->
+            <header class="bg-white shadow-sm p-4 flex justify-between items-center z-10">
+                <h2 class="text-2xl font-semibold text-gray-800">Recruitment Management Dashboard</h2>
+                <div>
+                    <!-- **FIXED LINK** -->
+                    <a href="{{ url_for('route_logout') }}" class="text-sm text-blue-500 hover:underline">Logout</a>
+                </div>
+            </header>
+
+            <!-- Loading Overlay -->
+            <div id="loading-overlay" class="absolute inset-0 bg-white bg-opacity-80 flex items-center justify-center hidden z-40">
+                <div class="text-lg font-semibold text-gray-700">Loading Dashboard...</div>
+            </div>
+
+            <!-- Dashboard Content -->
+            <div id="dashboard-content" class="flex-1 p-6 overflow-y-auto">
+                <!-- Error Display Area -->
+                <div id="error-display" class="hidden mb-6"></div>
+
+                <!-- KPIs -->
+                <div id="kpi-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-6"></div>
+
+                <!-- Visualizations -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <div class="bg-white p-4 rounded-lg shadow"><canvas id="appsPerCompanyChart"></canvas></div>
+                    <div class="bg-white p-4 rounded-lg shadow"><canvas id="appsPerCollegeChart"></canvas></div>
+                    <div class="bg-white p-4 rounded-lg shadow"><canvas id="recruitmentFunnelChart"></canvas></div>
+                    <div class="bg-white p-4 rounded-lg shadow"><canvas id="genderDiversityChart"></canvas></div>
+                </div>
+
+                <!-- Table View -->
+                <div class="bg-white p-4 rounded-lg shadow">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-semibold">Responses Overview</h3>
+                        <div class="flex items-center space-x-4">
+                            {% if role == 'admin' %}
+                            <button id="form-config-btn" class="bg-purple-500 text-white px-4 py-2 rounded-md hover:bg-purple-600">Form Configuration</button>
+                            <button id="user-management-btn" class="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600">User Management</button>
+                            <button id="status-management-btn" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">Status Management</button>
+                            {% endif %}
+                            <button id="download-csv-btn" class="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700">Download CSV</button>
+                            <div class="relative inline-block text-left">
+                                <div>
+                                    <button type="button" id="column-selector-btn" class="inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                        Select Columns
+                                        <svg class="-mr-1 ml-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                                    </button>
+                                </div>
+                                <div id="column-selector-dropdown" class="origin-top-right absolute right-0 mt-2 w-72 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 hidden z-20">
+                                    <div id="column-selector-options" class="py-1"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table id="data-table" class="min-w-full bg-white">
+                            <thead class="bg-gray-200"></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div id="details-modal" class="modal-backdrop hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fas fa-user-circle mr-2"></i>Candidate Details</h3>
+                <button id="close-details-modal-btn" class="modal-close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="modal-body-content" class="text-left space-y-2"></div>
+            </div>
+            <div class="modal-footer">
+                <button id="close-details-modal-btn-2" class="action-btn bg-gray-500 hover:bg-gray-600">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="status-modal" class="modal-backdrop hidden">
+        <div class="modal-content md:w-3/4 lg:w-2/3">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fas fa-tasks mr-2"></i>Status Management</h3>
+                <button id="close-status-modal-btn" class="modal-close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <table class="min-w-full bg-white">
+                    <thead class="bg-gray-100"><tr><th class="py-2 px-4 text-left font-semibold">Name</th><th class="py-2 px-4 text-left font-semibold">Email</th><th class="py-2 px-4 text-left font-semibold">Status</th></tr></thead>
+                    <tbody id="status-modal-body" class="divide-y divide-gray-200"></tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button id="close-status-modal-btn-2" class="action-btn bg-gray-500 hover:bg-gray-600">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="user-management-modal" class="modal-backdrop hidden">
+        <div class="modal-content md:w-3/4 lg:w-2/3">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fas fa-users-cog mr-2"></i>User Management</h3>
+                <button id="close-user-modal-btn" class="modal-close-btn">&times;</button>
+            </div>
+            <div class="modal-body space-y-6">
+                <div class="bg-gray-50 p-4 rounded-lg border">
+                    <h4 class="font-semibold mb-3 text-gray-700">Add New Viewer</h4>
+                    <form id="add-viewer-form" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                        <div><label for="new-viewer-email" class="block text-sm font-medium text-gray-700">Email</label><input type="email" id="new-viewer-email" required class="modal-input"></div>
+                        <div><label for="new-viewer-password" class="block text-sm font-medium text-gray-700">Password</label><input type="password" id="new-viewer-password" required class="modal-input"></div>
+                        <button type="submit" class="action-btn bg-blue-600 hover:bg-blue-700 h-10">Add Viewer</button>
+                    </form>
+                    <div id="add-user-feedback" class="text-sm mt-2"></div>
+                </div>
+                <div class="overflow-auto max-h-72">
+                    <h4 class="font-semibold mb-2 text-gray-700">Existing Users</h4>
+                    <table class="min-w-full bg-white">
+                        <thead class="bg-gray-100"><tr><th class="py-2 px-4 text-left font-semibold">Email</th><th class="py-2 px-4 text-left font-semibold">Role</th><th class="py-2 px-4 text-left font-semibold">Actions</th></tr></thead>
+                        <tbody id="user-list-body" class="divide-y divide-gray-200"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="close-user-modal-btn-2" class="action-btn bg-gray-500 hover:bg-gray-600">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form Configuration Modal -->
+    <div id="form-config-modal" class="modal-backdrop hidden">
+        <div class="modal-content md:w-3/4 lg:w-2/3">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fas fa-edit mr-2"></i>Form Field Configuration</h3>
+                <button id="close-form-config-modal-btn" class="modal-close-btn">&times;</button>
+            </div>
+            <div class="modal-body space-y-6">
+                <!-- Add New Field Form -->
+                <div class="bg-gray-50 p-4 rounded-lg border">
+                    <h4 class="font-semibold mb-3 text-gray-700">Add New Field</h4>
+                    <form id="add-field-form" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
+                        <div><label for="new-field-name" class="block text-sm font-medium text-gray-700">Field Name (no spaces)</label><input type="text" id="new-field-name" placeholder="e.g., mobile_number" required class="modal-input"></div>
+                        <div><label for="new-field-label" class="block text-sm font-medium text-gray-700">Field Label</label><input type="text" id="new-field-label" placeholder="e.g., Mobile Number" required class="modal-input"></div>
+                        <div><label for="new-field-subsection" class="block text-sm font-medium text-gray-700">Subsection</label><input type="text" id="new-field-subsection" placeholder="e.g., Personal Details" required class="modal-input"></div>
+                        <div><label for="new-field-type" class="block text-sm font-medium text-gray-700">Field Type</label>
+                            <select id="new-field-type" class="modal-input">
+                                <option value="text">Text</option><option value="email">Email</option><option value="tel">Telephone</option><option value="date">Date</option><option value="number">Number</option><option value="textarea">Text Area</option><option value="select">Dropdown</option><option value="radio">Radio Buttons</option>
+                            </select>
+                        </div>
+                        <div id="options-container" class="hidden md:col-span-2 lg:col-span-1"><label for="new-field-options" class="block text-sm font-medium text-gray-700">Options (comma-separated)</label><input type="text" id="new-field-options" placeholder="e.g., Yes, No" class="modal-input"></div>
+                        <button type="submit" class="action-btn bg-blue-600 hover:bg-blue-700 h-10">Add Field</button>
+                    </form>
+                    <div id="add-user-feedback" class="text-sm mt-2"></div>
+                </div>
+                <!-- Existing Fields List -->
+                <div class="overflow-auto max-h-72">
+                    <h4 class="font-semibold mb-2 text-gray-700">Existing Fields</h4>
+                    <table class="min-w-full bg-white">
+                        <thead class="bg-gray-100"><tr><th class="py-2 px-4 text-left font-semibold">Subsection</th><th class="py-2 px-4 text-left font-semibold">Label</th><th class="py-2 px-4 text-left font-semibold">Type</th><th class="py-2 px-4 text-left font-semibold">Actions</th></tr></thead>
+                        <tbody id="field-list-body" class="divide-y divide-gray-200"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="close-form-config-modal-btn-2" class="action-btn bg-gray-500 hover:bg-gray-600">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
