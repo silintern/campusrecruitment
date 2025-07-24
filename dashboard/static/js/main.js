@@ -990,12 +990,12 @@ document.addEventListener('DOMContentLoaded', function() {
             div.innerHTML = `
                 <div class="flex items-center justify-between">
                     <div class="flex items-center">
-                        <i class="fas fa-grip-vertical text-gray-400 mr-3"></i>
+                        <i class="fas fa-grip-vertical text-gray-400 mr-3 cursor-grab"></i>
                         <span class="text-lg mr-2">${iconMap[section.icon] || '📁'}</span>
                         <span class="font-medium text-gray-800">${section.name}</span>
                         <span class="ml-2 text-sm text-gray-500">(${getFieldCountForSection(section.name)} fields)</span>
                     </div>
-                    <span class="text-xs text-gray-400">#${index + 1}</span>
+                    <span class="section-order-number text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">#${index + 1}</span>
                 </div>
             `;
             sortableContainer.appendChild(div);
@@ -1014,7 +1014,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 sections.forEach(section => {
                     const option = document.createElement('option');
                     // Handle both old format (string) and new format (object)
-                    option.value = typeof section === 'string' ? section : section.name;
+                    const sectionName = typeof section === 'string' ? section : section.name;
+                    option.value = sectionName;
+                    option.textContent = sectionName;
                     datalist.appendChild(option);
                 });
             }
@@ -1365,6 +1367,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const nameInput = document.getElementById('new-section-name');
         const descriptionInput = document.getElementById('new-section-description');
         const iconSelect = document.getElementById('new-section-icon');
+        const button = document.getElementById('create-section-btn');
         
         const name = nameInput.value.trim();
         const description = descriptionInput.value.trim();
@@ -1377,6 +1380,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         try {
+            // Show loading state
+            const originalText = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Creating...';
+            button.disabled = true;
+            
             const response = await fetch('/api/form/sections', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1388,16 +1396,33 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error(error.error || 'Failed to create section');
             }
             
+            // Show success
+            button.innerHTML = '<i class="fas fa-check mr-1"></i>Created!';
+            button.className = button.className.replace('btn-primary', 'bg-green-600 hover:bg-green-700');
+            
             // Clear inputs
             nameInput.value = '';
             descriptionInput.value = '';
             iconSelect.value = 'folder';
             
+            // Reset button after delay
+            setTimeout(() => {
+                button.innerHTML = originalText;
+                button.className = button.className.replace('bg-green-600 hover:bg-green-700', 'btn-primary');
+                button.disabled = false;
+            }, 2000);
+            
             // Refresh the modal
-            openFormConfigModal();
+            setTimeout(() => {
+                openFormConfigModal();
+            }, 1000);
             
         } catch (error) {
             alert(`Could not create section: ${error.message}`);
+            
+            // Reset button
+            button.innerHTML = '<i class="fas fa-plus mr-1"></i>Create';
+            button.disabled = false;
         }
     }
 
@@ -1472,7 +1497,14 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
+        console.log('Saving section order:', sectionOrder);
+        
         try {
+            const button = document.getElementById('save-section-order');
+            const originalText = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Saving...';
+            button.disabled = true;
+            
             const response = await fetch('/api/form/sections/reorder', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1484,11 +1516,32 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error(error.error || 'Failed to reorder sections');
             }
             
-            alert('Section order saved successfully!');
-            openFormConfigModal(); // Refresh
+            const result = await response.json();
+            console.log('Section order saved:', result);
+            
+            // Show success message
+            button.innerHTML = '<i class="fas fa-check mr-2"></i>Saved!';
+            button.className = button.className.replace('btn-primary', 'bg-green-600 hover:bg-green-700');
+            
+            setTimeout(() => {
+                button.innerHTML = originalText;
+                button.className = button.className.replace('bg-green-600 hover:bg-green-700', 'btn-primary');
+                button.disabled = false;
+            }, 2000);
+            
+            // Refresh to show new order
+            setTimeout(() => {
+                openFormConfigModal();
+            }, 1000);
             
         } catch (error) {
+            console.error('Error saving section order:', error);
             alert(`Could not save section order: ${error.message}`);
+            
+            // Reset button
+            const button = document.getElementById('save-section-order');
+            button.innerHTML = '<i class="fas fa-save mr-2"></i>Save Section Order';
+            button.disabled = false;
         }
     }
 
@@ -1497,19 +1550,45 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!sortableContainer) return;
         
         let draggedElement = null;
+        let placeholder = null;
+        
+        // Create placeholder element
+        function createPlaceholder() {
+            const div = document.createElement('div');
+            div.className = 'sortable-section-placeholder bg-blue-100 border-2 border-dashed border-blue-300 rounded-lg p-3 opacity-50';
+            div.innerHTML = '<div class="text-center text-blue-500 text-sm">Drop here</div>';
+            return div;
+        }
         
         sortableContainer.addEventListener('dragstart', (e) => {
             draggedElement = e.target.closest('.sortable-section-item');
             if (draggedElement) {
+                draggedElement.classList.add('dragging');
                 draggedElement.style.opacity = '0.5';
                 e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/html', draggedElement.outerHTML);
+                
+                // Create and insert placeholder
+                placeholder = createPlaceholder();
+                draggedElement.parentNode.insertBefore(placeholder, draggedElement.nextSibling);
             }
         });
         
         sortableContainer.addEventListener('dragend', (e) => {
             if (draggedElement) {
+                draggedElement.classList.remove('dragging');
                 draggedElement.style.opacity = '1';
+                
+                // Remove placeholder
+                if (placeholder && placeholder.parentNode) {
+                    placeholder.parentNode.removeChild(placeholder);
+                }
+                
                 draggedElement = null;
+                placeholder = null;
+                
+                // Update order numbers
+                updateSectionOrderNumbers();
             }
         });
         
@@ -1517,16 +1596,29 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
             
+            if (!draggedElement || !placeholder) return;
+            
             const afterElement = getDragAfterElement(sortableContainer, e.clientY);
+            
             if (afterElement == null) {
-                sortableContainer.appendChild(draggedElement);
+                sortableContainer.appendChild(placeholder);
             } else {
-                sortableContainer.insertBefore(draggedElement, afterElement);
+                sortableContainer.insertBefore(placeholder, afterElement);
+            }
+        });
+        
+        sortableContainer.addEventListener('drop', (e) => {
+            e.preventDefault();
+            
+            if (draggedElement && placeholder) {
+                // Replace placeholder with dragged element
+                placeholder.parentNode.insertBefore(draggedElement, placeholder);
+                placeholder.parentNode.removeChild(placeholder);
             }
         });
         
         function getDragAfterElement(container, y) {
-            const draggableElements = [...container.querySelectorAll('.sortable-section-item:not([style*="opacity: 0.5"])')];
+            const draggableElements = [...container.querySelectorAll('.sortable-section-item:not(.dragging)')];
             
             return draggableElements.reduce((closest, child) => {
                 const box = child.getBoundingClientRect();
@@ -1538,6 +1630,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     return closest;
                 }
             }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+        
+        function updateSectionOrderNumbers() {
+            const items = sortableContainer.querySelectorAll('.sortable-section-item');
+            items.forEach((item, index) => {
+                const orderSpan = item.querySelector('.section-order-number');
+                if (orderSpan) {
+                    orderSpan.textContent = `#${index + 1}`;
+                }
+            });
         }
     }
 
@@ -1695,6 +1797,21 @@ document.addEventListener('DOMContentLoaded', function() {
         // Add section management event listeners
         document.getElementById('create-section-btn')?.addEventListener('click', handleCreateSection);
         document.getElementById('save-section-order')?.addEventListener('click', handleSaveSectionOrder);
+        
+        // Add keyboard support for section creation
+        document.getElementById('new-section-name')?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                handleCreateSection();
+            }
+        });
+        
+        document.getElementById('new-section-description')?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                handleCreateSection();
+            }
+        });
 
         const columnSelectorBtn = document.getElementById('column-selector-btn');
         const columnSelectorDropdown = document.getElementById('column-selector-dropdown');

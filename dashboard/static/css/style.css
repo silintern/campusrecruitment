@@ -328,6 +328,7 @@ input:checked + .toggle-switch::after {
 
 .sortable-section-item {
     transition: all 0.2s ease;
+    user-select: none;
 }
 
 .sortable-section-item:hover {
@@ -337,16 +338,40 @@ input:checked + .toggle-switch::after {
 
 .sortable-section-item.dragging {
     opacity: 0.5;
-    transform: rotate(5deg);
+    transform: rotate(2deg) scale(1.02);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+}
+
+.sortable-section-placeholder {
+    transition: all 0.2s ease;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 0.5;
+    }
+    50% {
+        opacity: 0.8;
+    }
 }
 
 /* Drag handle styling */
-.fas.fa-grip-vertical {
+.cursor-grab {
     cursor: grab;
 }
 
-.fas.fa-grip-vertical:active {
+.cursor-grab:active {
     cursor: grabbing;
+}
+
+.fas.fa-grip-vertical {
+    transition: color 0.2s ease;
+}
+
+.sortable-section-item:hover .fas.fa-grip-vertical {
+    color: #6366f1;
 }
 
 .tab-content {
