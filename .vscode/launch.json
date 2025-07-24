@@ -1,0 +1,38 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Dashboard Backend",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/dashboard/app.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "FLASK_ENV": "development",
+                "FLASK_DEBUG": "1"
+            },
+            "args": []
+        },
+        {
+            "name": "Form Backend",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/form.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "FLASK_ENV": "development",
+                "FLASK_DEBUG": "1"
+            },
+            "args": []
+        }
+    ],
+    "compounds": [
+        {
+            "name": "Start Both Backends",
+            "configurations": ["Dashboard Backend", "Form Backend"],
+            "stopAll": true
+        }
+    ]
+}
