@@ -3,23 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Recruitment Dashboard</title>
+    <title>Campus Recruitment Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+    </style>
 </head>
-<body class="bg-gray-100 font-sans">
+<body class="font-sans min-h-screen">
 
     <!-- Main Container -->
-    <div class="flex h-screen bg-gray-100">
+    <div class="flex h-screen">
 
-        <!-- Left Sidebar (Unchanged) -->
-        <aside class="w-64 bg-white shadow-md flex flex-col">
-            <div class="p-4 border-b flex justify-between items-center">
-                <h1 class="text-xl font-bold text-gray-800">Filters</h1>
-                <button id="reset-filters-btn" class="text-sm text-blue-500 hover:underline">Reset</button>
+        <!-- Enhanced Left Sidebar -->
+        <aside class="w-64 bg-white/95 backdrop-blur-lg shadow-xl border-r border-white/20 flex flex-col">
+            <div class="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <div class="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center mr-3">
+                            <i class="fas fa-filter text-white text-sm"></i>
+                        </div>
+                        <h1 class="text-xl font-bold text-gray-800">Filters</h1>
+                    </div>
+                    <button id="reset-filters-btn" class="text-sm text-blue-600 hover:text-blue-800 font-medium hover:underline transition-colors duration-200">
+                        <i class="fas fa-undo mr-1"></i>Reset
+                    </button>
+                </div>
             </div>
             <div id="filters-container" class="flex-grow p-4 overflow-y-auto">
                 <!-- Date Range Filter -->
@@ -67,14 +83,45 @@
             </div>
         </aside>
 
-        <!-- Main Content -->
+        <!-- Enhanced Main Content -->
         <main class="flex-1 flex flex-col overflow-hidden relative">
-            <!-- Header -->
-            <header class="bg-white shadow-sm p-4 flex justify-between items-center z-10">
-                <h2 class="text-2xl font-semibold text-gray-800">Recruitment Management Dashboard</h2>
-                <div>
-                    <!-- **FIXED LINK** -->
-                    <a href="{{ url_for('route_logout') }}" class="text-sm text-blue-500 hover:underline">Logout</a>
+            <!-- Enhanced Header -->
+            <header class="bg-white/95 backdrop-blur-lg shadow-xl border-b border-white/20 p-6 z-10">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-chart-line text-white text-xl"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                                Campus Recruitment Dashboard
+                            </h2>
+                            <p class="text-gray-600 text-sm">Real-time insights and analytics</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Header Actions -->
+                    <div class="flex items-center space-x-4">
+                        <button id="form-config-btn" class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                            <i class="fas fa-cogs mr-2"></i>Form Builder
+                        </button>
+                        
+                        <!-- User Menu -->
+                        <div class="relative">
+                            <button id="user-menu-btn" class="w-10 h-10 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center hover:from-gray-200 hover:to-gray-300 transition-all duration-200">
+                                <i class="fas fa-user text-gray-600"></i>
+                            </button>
+                            <div id="user-menu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1">
+                                <div class="px-4 py-2 border-b border-gray-200">
+                                    <p class="text-sm font-medium text-gray-800">Admin User</p>
+                                    <p class="text-xs text-gray-500">Administrator</p>
+                                </div>
+                                <a href="{{ url_for('route_logout') }}" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200">
+                                    <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                                </a>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </header>
 
@@ -83,20 +130,52 @@
                 <div class="text-lg font-semibold text-gray-700">Loading Dashboard...</div>
             </div>
 
-            <!-- Dashboard Content -->
-            <div id="dashboard-content" class="flex-1 p-6 overflow-y-auto">
+            <!-- Enhanced Dashboard Content -->
+            <div id="dashboard-content" class="flex-1 p-6 overflow-y-auto bg-gray-50/50">
                 <!-- Error Display Area -->
                 <div id="error-display" class="hidden mb-6"></div>
 
-                <!-- KPIs -->
-                <div id="kpi-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-6"></div>
+                <!-- Enhanced KPIs -->
+                <div id="kpi-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-8"></div>
 
-                <!-- Visualizations -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                    <div class="bg-white p-4 rounded-lg shadow"><canvas id="appsPerCompanyChart"></canvas></div>
-                    <div class="bg-white p-4 rounded-lg shadow"><canvas id="appsPerCollegeChart"></canvas></div>
-                    <div class="bg-white p-4 rounded-lg shadow"><canvas id="recruitmentFunnelChart"></canvas></div>
-                    <div class="bg-white p-4 rounded-lg shadow"><canvas id="genderDiversityChart"></canvas></div>
+                <!-- Enhanced Visualizations -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                    <div class="bg-white/95 backdrop-blur-lg p-6 rounded-xl shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-300">
+                        <div class="flex items-center mb-4">
+                            <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center mr-3">
+                                <i class="fas fa-building text-white text-sm"></i>
+                            </div>
+                            <h3 class="text-lg font-semibold text-gray-800">Applications by Company</h3>
+                        </div>
+                        <canvas id="appsPerCompanyChart"></canvas>
+                    </div>
+                    <div class="bg-white/95 backdrop-blur-lg p-6 rounded-xl shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-300">
+                        <div class="flex items-center mb-4">
+                            <div class="w-8 h-8 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center mr-3">
+                                <i class="fas fa-graduation-cap text-white text-sm"></i>
+                            </div>
+                            <h3 class="text-lg font-semibold text-gray-800">Applications by College</h3>
+                        </div>
+                        <canvas id="appsPerCollegeChart"></canvas>
+                    </div>
+                    <div class="bg-white/95 backdrop-blur-lg p-6 rounded-xl shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-300">
+                        <div class="flex items-center mb-4">
+                            <div class="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center mr-3">
+                                <i class="fas fa-funnel-dollar text-white text-sm"></i>
+                            </div>
+                            <h3 class="text-lg font-semibold text-gray-800">Recruitment Funnel</h3>
+                        </div>
+                        <canvas id="recruitmentFunnelChart"></canvas>
+                    </div>
+                    <div class="bg-white/95 backdrop-blur-lg p-6 rounded-xl shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-300">
+                        <div class="flex items-center mb-4">
+                            <div class="w-8 h-8 bg-gradient-to-br from-pink-500 to-pink-600 rounded-lg flex items-center justify-center mr-3">
+                                <i class="fas fa-venus-mars text-white text-sm"></i>
+                            </div>
+                            <h3 class="text-lg font-semibold text-gray-800">Gender Diversity</h3>
+                        </div>
+                        <canvas id="genderDiversityChart"></canvas>
+                    </div>
                 </div>
 
                 <!-- Table View -->

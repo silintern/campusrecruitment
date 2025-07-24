@@ -1789,6 +1789,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Initialize form config tabs
         initializeFormConfigTabs();
         
+        // Initialize user menu
+        initializeUserMenu();
+        
         // Add refresh functionality
         document.getElementById('refresh-fields')?.addEventListener('click', () => {
             openFormConfigModal();
@@ -1822,6 +1825,25 @@ document.addEventListener('DOMContentLoaded', function() {
         window.addEventListener('click', () => columnSelectorDropdown?.classList.add('hidden'));
 
         document.getElementById('download-csv-btn').addEventListener('click', downloadCSV);
+    }
+
+    function initializeUserMenu() {
+        const userMenuBtn = document.getElementById('user-menu-btn');
+        const userMenu = document.getElementById('user-menu');
+        
+        if (userMenuBtn && userMenu) {
+            userMenuBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                userMenu.classList.toggle('hidden');
+            });
+            
+            // Close menu when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!userMenuBtn.contains(e.target) && !userMenu.contains(e.target)) {
+                    userMenu.classList.add('hidden');
+                }
+            });
+        }
     }
 
     // --- Initial Load ---
