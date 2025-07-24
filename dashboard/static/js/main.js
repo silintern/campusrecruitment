@@ -1132,10 +1132,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ required })
             });
-            if (!response.ok) throw new Error('Failed to update field.');
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || errorData.error || `Server error: ${response.status}`);
+            }
         } catch (error) {
             event.target.checked = !required; // Revert on error
-            alert(`Could not update field: ${error.message}`);
+            console.error('Error updating field required status:', error);
+            
+            // Try to get more specific error message
+            let errorMessage = 'Unknown error occurred';
+            if (error.message) {
+                errorMessage = error.message;
+            }
+            
+            alert(`Could not update field: ${errorMessage}`);
         }
     }
 
@@ -1189,12 +1201,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ validations: JSON.stringify(validations) })
             });
-            if (!response.ok) throw new Error('Failed to update validation.');
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || errorData.error || `Server error: ${response.status}`);
+            }
             
             // Update local field data
             field.validations = JSON.stringify(validations);
         } catch (error) {
-            alert(`Could not update validation: ${error.message}`);
+            console.error('Error updating validation:', error);
+            alert(`Could not update validation: ${error.message || 'Unknown error occurred'}`);
         }
     }
 
