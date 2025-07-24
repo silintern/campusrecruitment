@@ -136,16 +136,36 @@
 
     <!-- Modals -->
     <div id="details-modal" class="modal-backdrop hidden">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 95vw; width: 95vw; max-height: 90vh;">
             <div class="modal-header">
-                <h3 class="modal-title"><i class="fas fa-user-circle mr-2"></i>Candidate Details</h3>
-                <button id="close-details-modal-btn" class="modal-close-btn">&times;</button>
+                <div class="flex items-center justify-between w-full">
+                    <h3 class="modal-title"><i class="fas fa-user-circle mr-2"></i>Candidate Details</h3>
+                    <div class="flex items-center space-x-3">
+                        <div class="relative">
+                            <input type="text" id="details-search" placeholder="Search details..." 
+                                   class="pl-8 pr-8 py-1 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200">
+                            <i class="fas fa-search absolute left-2.5 top-2 text-gray-400 text-xs"></i>
+                            <button type="button" id="clear-details-search" class="absolute right-2 top-1.5 text-gray-400 hover:text-gray-600 text-xs hidden">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <button type="button" id="print-details-btn" class="text-gray-600 hover:text-gray-800 p-2 rounded-md hover:bg-gray-100 transition-colors duration-200" title="Print Details">
+                            <i class="fas fa-print"></i>
+                        </button>
+                        <button id="close-details-modal-btn" class="modal-close-btn">&times;</button>
+                    </div>
+                </div>
             </div>
-            <div class="modal-body">
-                <div id="modal-body-content" class="text-left space-y-2"></div>
+            <div class="modal-body" style="max-height: calc(90vh - 140px); overflow-y: auto;">
+                <div id="modal-body-content" class="text-left"></div>
             </div>
             <div class="modal-footer">
-                <button id="close-details-modal-btn-2" class="action-btn bg-gray-500 hover:bg-gray-600">Close</button>
+                <div class="flex items-center justify-between w-full">
+                    <div class="text-sm text-gray-600">
+                        <span id="visible-sections-count"></span>
+                    </div>
+                    <button id="close-details-modal-btn-2" class="action-btn bg-gray-500 hover:bg-gray-600">Close</button>
+                </div>
             </div>
         </div>
     </div>
