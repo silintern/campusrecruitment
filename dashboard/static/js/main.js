@@ -893,20 +893,116 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function populateSectionsList(sections = []) {
         const sectionsList = document.getElementById('sections-list');
+        const sectionsCount = document.getElementById('sections-count');
+        
         if (!sectionsList) return;
         sectionsList.innerHTML = '';
 
-        sections.forEach(section => {
+        // Handle both old format (array of strings) and new format (array of objects)
+        const normalizedSections = sections.map(section => {
+            if (typeof section === 'string') {
+                return { name: section, description: '', icon: 'folder', order: 0 };
+            }
+            return section;
+        });
+
+        if (sectionsCount) {
+            sectionsCount.textContent = `${normalizedSections.length} sections`;
+        }
+
+        if (normalizedSections.length === 0) {
+            sectionsList.innerHTML = `
+                <div class="text-center py-8 text-gray-500">
+                    <i class="fas fa-layer-group text-2xl mb-2"></i>
+                    <p class="text-sm">No sections created yet</p>
+                    <p class="text-xs">Create your first section above</p>
+                </div>
+            `;
+            return;
+        }
+
+        normalizedSections.forEach(section => {
             const div = document.createElement('div');
-            div.className = 'section-item';
+            div.className = 'section-item bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all duration-200';
+            
+            const iconMap = {
+                'folder': '📁', 'user': '👤', 'briefcase': '💼', 'graduation-cap': '🎓',
+                'phone': '📞', 'file-alt': '📄', 'cog': '⚙️', 'star': '⭐'
+            };
+            
             div.innerHTML = `
-                <span class="font-medium">${section}</span>
-                <button class="text-red-500 hover:underline text-sm rename-section-btn" data-section="${section}">Rename</button>
+                <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                        <div class="flex items-center mb-2">
+                            <span class="text-lg mr-2">${iconMap[section.icon] || '📁'}</span>
+                            <h6 class="font-semibold text-gray-800">${section.name}</h6>
+                        </div>
+                        ${section.description ? `<p class="text-sm text-gray-600 mb-2">${section.description}</p>` : ''}
+                        <p class="text-xs text-gray-500">
+                            ${getFieldCountForSection(section.name)} fields
+                        </p>
+                    </div>
+                    <div class="flex items-center space-x-2 ml-4">
+                        <button class="edit-section-btn text-blue-600 hover:text-blue-800 p-1 rounded" 
+                                data-section="${section.name}" title="Edit Section">
+                            <i class="fas fa-edit text-sm"></i>
+                        </button>
+                        <button class="delete-section-btn text-red-600 hover:text-red-800 p-1 rounded" 
+                                data-section="${section.name}" title="Delete Section">
+                            <i class="fas fa-trash text-sm"></i>
+                        </button>
+                    </div>
+                </div>
             `;
             sectionsList.appendChild(div);
         });
 
-        document.querySelectorAll('.rename-section-btn').forEach(btn => btn.addEventListener('click', handleRenameSection));
+        // Add event listeners
+        document.querySelectorAll('.edit-section-btn').forEach(btn => btn.addEventListener('click', handleEditSection));
+        document.querySelectorAll('.delete-section-btn').forEach(btn => btn.addEventListener('click', handleDeleteSection));
+        
+        // Populate sortable sections
+        populateSortableSections(normalizedSections);
+    }
+
+    function getFieldCountForSection(sectionName) {
+        return currentFields.filter(field => field.subsection === sectionName).length;
+    }
+
+    function populateSortableSections(sections = []) {
+        const sortableContainer = document.getElementById('sortable-sections');
+        if (!sortableContainer) return;
+        sortableContainer.innerHTML = '';
+
+        const sortedSections = [...sections].sort((a, b) => (a.order || 0) - (b.order || 0));
+        
+        sortedSections.forEach((section, index) => {
+            const div = document.createElement('div');
+            div.className = 'sortable-section-item bg-gray-50 border border-gray-200 rounded-lg p-3 cursor-move hover:bg-gray-100 transition-colors duration-200';
+            div.draggable = true;
+            div.dataset.sectionName = section.name;
+            
+            const iconMap = {
+                'folder': '📁', 'user': '👤', 'briefcase': '💼', 'graduation-cap': '🎓',
+                'phone': '📞', 'file-alt': '📄', 'cog': '⚙️', 'star': '⭐'
+            };
+            
+            div.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <i class="fas fa-grip-vertical text-gray-400 mr-3"></i>
+                        <span class="text-lg mr-2">${iconMap[section.icon] || '📁'}</span>
+                        <span class="font-medium text-gray-800">${section.name}</span>
+                        <span class="ml-2 text-sm text-gray-500">(${getFieldCountForSection(section.name)} fields)</span>
+                    </div>
+                    <span class="text-xs text-gray-400">#${index + 1}</span>
+                </div>
+            `;
+            sortableContainer.appendChild(div);
+        });
+
+        // Initialize drag and drop for sections
+        initializeSectionDragAndDrop();
     }
 
     function populateExistingSections(sections = []) {
@@ -917,7 +1013,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 datalist.innerHTML = '';
                 sections.forEach(section => {
                     const option = document.createElement('option');
-                    option.value = section;
+                    // Handle both old format (string) and new format (object)
+                    option.value = typeof section === 'string' ? section : section.name;
                     datalist.appendChild(option);
                 });
             }
@@ -1264,33 +1361,184 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    function handleRenameSection(event) {
-        const oldSection = event.target.dataset.section;
-        const newSection = prompt('Enter new section name:', oldSection);
-        if (!newSection || newSection === oldSection) return;
-
-        // Update all fields with this section
-        const updates = currentFields
-            .filter(f => f.subsection === oldSection)
-            .map(f => ({ id: f.id, subsection: newSection }));
-
-        if (updates.length === 0) {
-            alert('No fields found in this section.');
+    async function handleCreateSection() {
+        const nameInput = document.getElementById('new-section-name');
+        const descriptionInput = document.getElementById('new-section-description');
+        const iconSelect = document.getElementById('new-section-icon');
+        
+        const name = nameInput.value.trim();
+        const description = descriptionInput.value.trim();
+        const icon = iconSelect.value;
+        
+        if (!name) {
+            alert('Please enter a section name.');
+            nameInput.focus();
             return;
         }
+        
+        try {
+            const response = await fetch('/api/form/sections', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, description, icon })
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to create section');
+            }
+            
+            // Clear inputs
+            nameInput.value = '';
+            descriptionInput.value = '';
+            iconSelect.value = 'folder';
+            
+            // Refresh the modal
+            openFormConfigModal();
+            
+        } catch (error) {
+            alert(`Could not create section: ${error.message}`);
+        }
+    }
 
-        // Bulk update fields with new section name
-        Promise.all(updates.map(update => 
-            fetch(`/api/form/config/${update.id}`, {
+    async function handleEditSection(event) {
+        const sectionName = event.target.closest('button').dataset.section;
+        const currentSection = currentSections.find(s => 
+            (typeof s === 'string' ? s : s.name) === sectionName
+        );
+        
+        const newName = prompt('Enter new section name:', sectionName);
+        if (!newName || newName === sectionName) return;
+        
+        try {
+            const response = await fetch(`/api/form/sections/${encodeURIComponent(sectionName)}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ subsection: update.subsection })
-            })
-        )).then(() => {
+                body: JSON.stringify({ 
+                    name: newName,
+                    description: currentSection?.description || '',
+                    icon: currentSection?.icon || 'folder'
+                })
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to update section');
+            }
+            
             openFormConfigModal(); // Refresh
-        }).catch(error => {
-            alert(`Could not rename section: ${error.message}`);
+            
+        } catch (error) {
+            alert(`Could not update section: ${error.message}`);
+        }
+    }
+
+    async function handleDeleteSection(event) {
+        const sectionName = event.target.closest('button').dataset.section;
+        const fieldCount = getFieldCountForSection(sectionName);
+        
+        if (fieldCount > 0) {
+            alert(`Cannot delete section "${sectionName}" because it contains ${fieldCount} field(s). Please move or delete the fields first.`);
+            return;
+        }
+        
+        if (!confirm(`Are you sure you want to delete the section "${sectionName}"?`)) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/form/sections/${encodeURIComponent(sectionName)}`, {
+                method: 'DELETE'
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to delete section');
+            }
+            
+            openFormConfigModal(); // Refresh
+            
+        } catch (error) {
+            alert(`Could not delete section: ${error.message}`);
+        }
+    }
+
+    async function handleSaveSectionOrder() {
+        const sortableItems = document.querySelectorAll('.sortable-section-item');
+        const sectionOrder = Array.from(sortableItems).map(item => item.dataset.sectionName);
+        
+        if (sectionOrder.length === 0) {
+            alert('No sections to reorder.');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/form/sections/reorder', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sections: sectionOrder })
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to reorder sections');
+            }
+            
+            alert('Section order saved successfully!');
+            openFormConfigModal(); // Refresh
+            
+        } catch (error) {
+            alert(`Could not save section order: ${error.message}`);
+        }
+    }
+
+    function initializeSectionDragAndDrop() {
+        const sortableContainer = document.getElementById('sortable-sections');
+        if (!sortableContainer) return;
+        
+        let draggedElement = null;
+        
+        sortableContainer.addEventListener('dragstart', (e) => {
+            draggedElement = e.target.closest('.sortable-section-item');
+            if (draggedElement) {
+                draggedElement.style.opacity = '0.5';
+                e.dataTransfer.effectAllowed = 'move';
+            }
         });
+        
+        sortableContainer.addEventListener('dragend', (e) => {
+            if (draggedElement) {
+                draggedElement.style.opacity = '1';
+                draggedElement = null;
+            }
+        });
+        
+        sortableContainer.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            
+            const afterElement = getDragAfterElement(sortableContainer, e.clientY);
+            if (afterElement == null) {
+                sortableContainer.appendChild(draggedElement);
+            } else {
+                sortableContainer.insertBefore(draggedElement, afterElement);
+            }
+        });
+        
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.sortable-section-item:not([style*="opacity: 0.5"])')];
+            
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
     }
 
     function toggleOptionsContainer() {
@@ -1443,6 +1691,10 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('refresh-fields')?.addEventListener('click', () => {
             openFormConfigModal();
         });
+
+        // Add section management event listeners
+        document.getElementById('create-section-btn')?.addEventListener('click', handleCreateSection);
+        document.getElementById('save-section-order')?.addEventListener('click', handleSaveSectionOrder);
 
         const columnSelectorBtn = document.getElementById('column-selector-btn');
         const columnSelectorDropdown = document.getElementById('column-selector-dropdown');

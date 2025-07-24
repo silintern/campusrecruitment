@@ -316,6 +316,39 @@ input:checked + .toggle-switch::after {
     transform: scale(1.05);
 }
 
+/* Section Management Styles */
+.section-item {
+    transition: all 0.3s ease;
+}
+
+.section-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.sortable-section-item {
+    transition: all 0.2s ease;
+}
+
+.sortable-section-item:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.sortable-section-item.dragging {
+    opacity: 0.5;
+    transform: rotate(5deg);
+}
+
+/* Drag handle styling */
+.fas.fa-grip-vertical {
+    cursor: grab;
+}
+
+.fas.fa-grip-vertical:active {
+    cursor: grabbing;
+}
+
 .tab-content {
     animation: fade-in 0.3s ease-in-out;
     transition: opacity 0.3s ease;

@@ -400,6 +400,15 @@ def api_submit_application():
 def get_public_form_config():
     """A public endpoint to fetch the form structure for any applicant."""
     conn = get_db_conn()
+    
+    # Get section order from form_sections table if it exists
+    section_order = {}
+    try:
+        sections_query = conn.execute("SELECT name, section_order FROM form_sections ORDER BY section_order ASC").fetchall()
+        section_order = {row['name']: row['section_order'] for row in sections_query}
+    except:
+        pass  # Table doesn't exist yet
+    
     fields_query = conn.execute("SELECT * FROM form_config ORDER BY field_order ASC").fetchall()
     conn.close()
     
@@ -407,9 +416,15 @@ def get_public_form_config():
     subsections = defaultdict(list)
     for field in fields_query:
         subsections[field['subsection']].append(dict(field))
-        
-    # Maintain the order of subsections based on the first field's order in each
-    subsection_order = sorted(subsections.keys(), key=lambda k: subsections[k][0]['field_order'])
+    
+    # Order subsections by section_order if available, otherwise by first field's order
+    if section_order:
+        # Sort by section order, putting unordered sections at the end
+        subsection_order = sorted(subsections.keys(), key=lambda k: section_order.get(k, 9999))
+    else:
+        # Fallback: maintain the order of subsections based on the first field's order in each
+        subsection_order = sorted(subsections.keys(), key=lambda k: subsections[k][0]['field_order'])
+    
     ordered_subsections = {k: subsections[k] for k in subsection_order}
     
     return jsonify(ordered_subsections)
@@ -585,9 +600,205 @@ def reorder_form_fields():
 def get_form_sections():
     if session.get('user_role') != 'admin': return jsonify({"error": "Admin access required."}), 403
     conn = get_db_conn()
+    
+    # Get sections from the sections table if it exists, otherwise fall back to distinct subsections
+    try:
+        sections = conn.execute("""
+            SELECT name, section_order, description, icon 
+            FROM form_sections 
+            ORDER BY section_order, name
+        """).fetchall()
+        
+        if sections:
+            conn.close()
+            return jsonify([{
+                'name': row['name'],
+                'order': row['section_order'],
+                'description': row['description'],
+                'icon': row['icon']
+            } for row in sections])
+    except:
+        pass  # Table doesn't exist yet, fall back to old method
+    
+    # Fallback: get distinct subsections from form_config
     sections = conn.execute("SELECT DISTINCT subsection FROM form_config WHERE subsection IS NOT NULL ORDER BY subsection").fetchall()
     conn.close()
     return jsonify([row['subsection'] for row in sections])
+
+@app.route('/api/form/sections', methods=['POST'])
+def create_form_section():
+    if session.get('user_role') != 'admin': return jsonify({"error": "Admin access required."}), 403
+    
+    data = request.json
+    name = data.get('name', '').strip()
+    description = data.get('description', '').strip()
+    icon = data.get('icon', 'folder').strip()
+    
+    if not name:
+        return jsonify({"error": "Section name is required."}), 400
+    
+    conn = get_db_conn()
+    try:
+        # Ensure sections table exists
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS form_sections (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE NOT NULL,
+                section_order INTEGER DEFAULT 0,
+                description TEXT,
+                icon TEXT DEFAULT 'folder',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        # Get next order
+        max_order = conn.execute("SELECT COALESCE(MAX(section_order), 0) FROM form_sections").fetchone()[0]
+        next_order = max_order + 1
+        
+        # Insert new section
+        conn.execute("""
+            INSERT INTO form_sections (name, section_order, description, icon)
+            VALUES (?, ?, ?, ?)
+        """, (name, next_order, description, icon))
+        
+        conn.commit()
+        return jsonify({"success": True, "message": "Section created successfully."})
+        
+    except sqlite3.IntegrityError:
+        return jsonify({"error": "Section with this name already exists."}), 400
+    except Exception as e:
+        print(f"--- API ERROR in /api/form/sections [POST] ---\n{traceback.format_exc()}")
+        return jsonify({"error": "Server error while creating section.", "message": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/api/form/sections/<section_name>', methods=['PUT'])
+def update_form_section(section_name):
+    if session.get('user_role') != 'admin': return jsonify({"error": "Admin access required."}), 403
+    
+    data = request.json
+    new_name = data.get('name', '').strip()
+    description = data.get('description', '').strip()
+    icon = data.get('icon', 'folder').strip()
+    
+    conn = get_db_conn()
+    try:
+        # Ensure sections table exists
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS form_sections (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE NOT NULL,
+                section_order INTEGER DEFAULT 0,
+                description TEXT,
+                icon TEXT DEFAULT 'folder',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        # Check if section exists in sections table
+        existing = conn.execute("SELECT id FROM form_sections WHERE name = ?", (section_name,)).fetchone()
+        
+        if existing:
+            # Update existing section
+            conn.execute("""
+                UPDATE form_sections 
+                SET name = ?, description = ?, icon = ?
+                WHERE name = ?
+            """, (new_name or section_name, description, icon, section_name))
+        else:
+            # Create new section entry for existing subsection
+            max_order = conn.execute("SELECT COALESCE(MAX(section_order), 0) FROM form_sections").fetchone()[0]
+            conn.execute("""
+                INSERT INTO form_sections (name, section_order, description, icon)
+                VALUES (?, ?, ?, ?)
+            """, (new_name or section_name, max_order + 1, description, icon))
+        
+        # If name changed, update all fields with old section name
+        if new_name and new_name != section_name:
+            conn.execute("""
+                UPDATE form_config 
+                SET subsection = ?
+                WHERE subsection = ?
+            """, (new_name, section_name))
+        
+        conn.commit()
+        return jsonify({"success": True, "message": "Section updated successfully."})
+        
+    except sqlite3.IntegrityError:
+        return jsonify({"error": "Section with this name already exists."}), 400
+    except Exception as e:
+        print(f"--- API ERROR in /api/form/sections/{section_name} [PUT] ---\n{traceback.format_exc()}")
+        return jsonify({"error": "Server error while updating section.", "message": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/api/form/sections/<section_name>', methods=['DELETE'])
+def delete_form_section(section_name):
+    if session.get('user_role') != 'admin': return jsonify({"error": "Admin access required."}), 403
+    
+    conn = get_db_conn()
+    try:
+        # Check if section has fields
+        fields_count = conn.execute("SELECT COUNT(*) FROM form_config WHERE subsection = ?", (section_name,)).fetchone()[0]
+        
+        if fields_count > 0:
+            return jsonify({"error": f"Cannot delete section '{section_name}' because it contains {fields_count} field(s). Please move or delete the fields first."}), 400
+        
+        # Delete from sections table if it exists
+        try:
+            conn.execute("DELETE FROM form_sections WHERE name = ?", (section_name,))
+        except:
+            pass  # Table might not exist
+        
+        conn.commit()
+        return jsonify({"success": True, "message": "Section deleted successfully."})
+        
+    except Exception as e:
+        print(f"--- API ERROR in /api/form/sections/{section_name} [DELETE] ---\n{traceback.format_exc()}")
+        return jsonify({"error": "Server error while deleting section.", "message": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/api/form/sections/reorder', methods=['POST'])
+def reorder_form_sections():
+    if session.get('user_role') != 'admin': return jsonify({"error": "Admin access required."}), 403
+    
+    section_orders = request.json.get('sections', [])
+    
+    if not section_orders:
+        return jsonify({"error": "No sections provided for reordering."}), 400
+    
+    conn = get_db_conn()
+    try:
+        # Ensure sections table exists
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS form_sections (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE NOT NULL,
+                section_order INTEGER DEFAULT 0,
+                description TEXT,
+                icon TEXT DEFAULT 'folder',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        cursor = conn.cursor()
+        for order, section_name in enumerate(section_orders):
+            # Insert or update section order
+            cursor.execute("""
+                INSERT INTO form_sections (name, section_order, icon)
+                VALUES (?, ?, 'folder')
+                ON CONFLICT(name) DO UPDATE SET section_order = excluded.section_order
+            """, (section_name, order + 1))
+        
+        conn.commit()
+        return jsonify({"success": True, "message": "Sections reordered successfully."})
+        
+    except Exception as e:
+        print(f"--- API ERROR in /api/form/sections/reorder ---\n{traceback.format_exc()}")
+        return jsonify({"error": "Server error while reordering sections.", "message": str(e)}), 500
+    finally:
+        conn.close()
 
 @app.route('/api/form/config/bulk-update', methods=['POST'])
 def bulk_update_fields():
