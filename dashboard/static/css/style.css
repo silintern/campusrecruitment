@@ -332,3 +332,102 @@
 .field-type-radio { background: #ecfdf5; color: #059669; }
 .field-type-checkbox { background: #fef7ff; color: #a21caf; }
 .field-type-file { background: #fff7ed; color: #c2410c; }
+
+/* --- Candidate Details Modal Enhancements --- */
+.candidate-subsection {
+    transition: all 0.3s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    animation: fadeInUp 0.4s ease-out;
+}
+
+.candidate-subsection:hover {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.candidate-field {
+    transition: all 0.2s ease;
+}
+
+.candidate-field:hover {
+    background-color: #f8fafc;
+    border-color: #cbd5e1;
+}
+
+.subsection-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* Status badge animations */
+.status-badge {
+    transition: all 0.2s ease;
+}
+
+.status-badge:hover {
+    transform: scale(1.05);
+}
+
+/* Resume link styling */
+.resume-link {
+    transition: all 0.2s ease;
+    border-radius: 6px;
+    padding: 8px 12px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    font-weight: 500;
+}
+
+.resume-link:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    text-decoration: none;
+    color: white;
+}
+
+/* Loading state improvements */
+.details-loading {
+    background: linear-gradient(90deg, #f0f0f0 25%, transparent 37%, #f0f0f0 63%);
+    background-size: 400% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+    0% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* Enhanced scrollbar for modal */
+.modal-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 3px;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+
+.modal-body::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}

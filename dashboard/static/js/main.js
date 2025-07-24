@@ -312,19 +312,374 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    function showDetailsModal(rowData) {
+    async function showDetailsModal(rowData) {
         const modal = document.getElementById('details-modal');
         const modalBody = modal.querySelector('#modal-body-content');
         if (!modalBody || !modal) return;
-        modalBody.innerHTML = '';
-        for (const [key, value] of Object.entries(rowData)) {
-            if (key === 'resume_path' && value) {
-                 modalBody.innerHTML += `<p class="mb-2 text-left"><strong class="text-gray-600">Resume:</strong> <a href="/uploads/${value}" target="_blank" class="text-blue-600 hover:underline">View Resume</a></p>`;
+        
+        modalBody.innerHTML = '<div class="flex justify-center items-center py-4"><div class="loading-spinner"></div><span class="ml-2 text-gray-600">Loading details...</span></div>';
+        modal.classList.remove('hidden');
+
+        try {
+            // Fetch form configuration to organize data by subsections
+            const response = await fetch('/api/form/config');
+            const formFields = response.ok ? await response.json() : [];
+            
+            // Create field mapping with subsection info
+            const fieldMap = {};
+            formFields.forEach(field => {
+                fieldMap[field.name] = {
+                    label: field.label,
+                    subsection: field.subsection || 'Other Information',
+                    type: field.type,
+                    order: field.field_order || 999
+                };
+            });
+
+            // Add special handling for fields not in config
+            const specialFields = {
+                'id': { label: 'ID', subsection: 'Basic Information', type: 'text', order: 0 },
+                'submission_timestamp': { label: 'Submission Date', subsection: 'Basic Information', type: 'datetime', order: 1 },
+                'Status': { label: 'Application Status', subsection: 'Basic Information', type: 'text', order: 2 },
+                'resume_path': { label: 'Resume', subsection: 'Documents', type: 'file', order: 0 }
+            };
+
+            // Merge special fields with form config
+            Object.entries(specialFields).forEach(([key, value]) => {
+                if (!fieldMap[key]) {
+                    fieldMap[key] = value;
+                }
+            });
+
+            // Group data by subsections
+            const subsections = {};
+            Object.entries(rowData).forEach(([key, value]) => {
+                const fieldInfo = fieldMap[key] || { 
+                    label: formatFieldName(key), 
+                    subsection: 'Other Information', 
+                    type: 'text',
+                    order: 999 
+                };
+                
+                if (!subsections[fieldInfo.subsection]) {
+                    subsections[fieldInfo.subsection] = [];
+                }
+                
+                subsections[fieldInfo.subsection].push({
+                    key,
+                    label: fieldInfo.label,
+                    value,
+                    type: fieldInfo.type,
+                    order: fieldInfo.order
+                });
+            });
+
+            // Sort fields within each subsection by order
+            Object.keys(subsections).forEach(subsection => {
+                subsections[subsection].sort((a, b) => a.order - b.order);
+            });
+
+            // Clear loading and render organized content
+            modalBody.innerHTML = '';
+            
+            // Define subsection order
+            const subsectionOrder = [
+                'Basic Information',
+                'Personal Details',
+                'Contact & Position',
+                "Spouse's Details",
+                'Academic Qualifications',
+                'Additional Information',
+                'Documents',
+                'Other Information'
+            ];
+
+            // Render subsections in order
+            subsectionOrder.forEach(subsectionName => {
+                if (subsections[subsectionName] && subsections[subsectionName].length > 0) {
+                    renderSubsection(modalBody, subsectionName, subsections[subsectionName]);
+                }
+            });
+
+            // Render any remaining subsections not in the predefined order
+            Object.keys(subsections).forEach(subsectionName => {
+                if (!subsectionOrder.includes(subsectionName) && subsections[subsectionName].length > 0) {
+                    renderSubsection(modalBody, subsectionName, subsections[subsectionName]);
+                }
+            });
+
+            // Initialize search functionality
+            initializeDetailsSearch();
+            initializePrintFunctionality();
+            updateVisibleSectionsCount();
+
+        } catch (error) {
+            console.error('Error loading candidate details:', error);
+            modalBody.innerHTML = `
+                <div class="text-center py-8">
+                    <div class="text-red-600 mb-2">
+                        <svg class="mx-auto h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <p class="text-gray-600">Unable to load candidate details</p>
+                    <button onclick="showDetailsModal(${JSON.stringify(rowData).replace(/"/g, '&quot;')})" class="mt-2 text-blue-600 hover:underline text-sm">Try Again</button>
+                </div>
+            `;
+        }
+    }
+
+    function renderSubsection(container, subsectionName, fields) {
+        const subsectionDiv = document.createElement('div');
+        subsectionDiv.className = 'candidate-subsection mb-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-5 border border-gray-200';
+        
+        // Subsection header
+        const header = document.createElement('h3');
+        header.className = 'subsection-header text-xl font-bold mb-4 pb-3 border-b-2 border-gradient-to-r from-blue-400 to-purple-500';
+        
+        // Add appropriate icons for different sections
+        const sectionIcons = {
+            'Basic Information': 'fas fa-info-circle',
+            'Personal Details': 'fas fa-user',
+            'Contact & Position': 'fas fa-briefcase',
+            "Spouse's Details": 'fas fa-heart',
+            'Academic Qualifications': 'fas fa-graduation-cap',
+            'Additional Information': 'fas fa-plus-circle',
+            'Documents': 'fas fa-file-alt',
+            'Other Information': 'fas fa-ellipsis-h'
+        };
+        
+        const iconClass = sectionIcons[subsectionName] || 'fas fa-folder-open';
+        header.innerHTML = `<i class="${iconClass} mr-3 text-blue-600"></i>${subsectionName}`;
+        subsectionDiv.appendChild(header);
+
+        // Fields grid
+        const fieldsGrid = document.createElement('div');
+        fieldsGrid.className = 'grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4';
+
+        fields.forEach(field => {
+            const fieldDiv = document.createElement('div');
+            fieldDiv.className = 'candidate-field bg-white p-4 rounded-lg border border-gray-200 shadow-sm';
+
+            const label = document.createElement('div');
+            label.className = 'text-sm font-semibold text-gray-700 mb-2 uppercase tracking-wide';
+            label.textContent = field.label;
+
+            const value = document.createElement('div');
+            value.className = 'text-gray-900 font-medium';
+
+            // Handle different field types with enhanced styling
+            if (field.key === 'resume_path' && field.value) {
+                value.innerHTML = `<a href="/uploads/${field.value}" target="_blank" class="resume-link">
+                    <i class="fas fa-file-pdf mr-2"></i>View Resume
+                </a>`;
+            } else if (field.type === 'datetime' && field.value) {
+                const date = new Date(field.value);
+                value.innerHTML = `<div class="flex items-center">
+                    <i class="fas fa-clock mr-2 text-gray-500"></i>
+                    <span>${date.toLocaleString()}</span>
+                </div>`;
+            } else if (field.type === 'date' && field.value) {
+                const date = new Date(field.value);
+                value.innerHTML = `<div class="flex items-center">
+                    <i class="fas fa-calendar mr-2 text-gray-500"></i>
+                    <span>${date.toLocaleDateString()}</span>
+                </div>`;
+            } else if (field.key === 'Status') {
+                const statusConfig = {
+                    'Applied': { class: 'bg-blue-100 text-blue-800 border-blue-200', icon: 'fas fa-paper-plane' },
+                    'Shortlisted': { class: 'bg-yellow-100 text-yellow-800 border-yellow-200', icon: 'fas fa-star' },
+                    'Interviewed': { class: 'bg-purple-100 text-purple-800 border-purple-200', icon: 'fas fa-comments' },
+                    'Offered': { class: 'bg-green-100 text-green-800 border-green-200', icon: 'fas fa-handshake' },
+                    'Hired': { class: 'bg-green-200 text-green-900 border-green-300', icon: 'fas fa-check-circle' },
+                    'Rejected': { class: 'bg-red-100 text-red-800 border-red-200', icon: 'fas fa-times-circle' }
+                };
+                const config = statusConfig[field.value] || { class: 'bg-gray-100 text-gray-800 border-gray-200', icon: 'fas fa-question' };
+                value.innerHTML = `<span class="status-badge inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold border ${config.class}">
+                    <i class="${config.icon} mr-2"></i>${field.value || 'Applied'}
+                </span>`;
+            } else if (field.type === 'email' && field.value) {
+                value.innerHTML = `<div class="flex items-center">
+                    <i class="fas fa-envelope mr-2 text-gray-500"></i>
+                    <a href="mailto:${field.value}" class="text-blue-600 hover:text-blue-800 hover:underline">${field.value}</a>
+                </div>`;
+            } else if (field.type === 'tel' && field.value) {
+                value.innerHTML = `<div class="flex items-center">
+                    <i class="fas fa-phone mr-2 text-gray-500"></i>
+                    <a href="tel:${field.value}" class="text-blue-600 hover:text-blue-800 hover:underline">${field.value}</a>
+                </div>`;
+            } else if (field.type === 'textarea' && field.value) {
+                value.innerHTML = `<div class="bg-gray-50 p-3 rounded-md border border-gray-200">
+                    <p class="text-sm leading-relaxed">${field.value}</p>
+                </div>`;
             } else {
-                modalBody.innerHTML += `<p class="mb-2 text-left"><strong class="text-gray-600">${key}:</strong> ${value || 'N/A'}</p>`;
+                if (field.value) {
+                    value.innerHTML = `<span class="text-gray-900">${field.value}</span>`;
+                } else {
+                    value.innerHTML = `<span class="text-gray-400 italic">Not provided</span>`;
+                }
+            }
+
+            // Handle long text fields - make them span more columns
+            if (field.type === 'textarea' && field.value && field.value.length > 100) {
+                fieldDiv.className = 'candidate-field bg-white p-4 rounded-lg border border-gray-200 shadow-sm lg:col-span-2 xl:col-span-3';
+            }
+
+            // Add special styling for important fields
+            if (['name', 'email', 'Status'].includes(field.key)) {
+                fieldDiv.className += ' ring-2 ring-blue-100';
+            }
+
+            fieldDiv.appendChild(label);
+            fieldDiv.appendChild(value);
+            fieldsGrid.appendChild(fieldDiv);
+        });
+
+        subsectionDiv.appendChild(fieldsGrid);
+        container.appendChild(subsectionDiv);
+    }
+
+    function formatFieldName(fieldName) {
+        return fieldName
+            .split('_')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+    }
+
+    function initializeDetailsSearch() {
+        const searchInput = document.getElementById('details-search');
+        const clearButton = document.getElementById('clear-details-search');
+        
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                filterDetailsContent(searchTerm);
+                
+                // Show/hide clear button
+                if (clearButton) {
+                    if (this.value.length > 0) {
+                        clearButton.classList.remove('hidden');
+                    } else {
+                        clearButton.classList.add('hidden');
+                    }
+                }
+            });
+        }
+
+        if (clearButton) {
+            clearButton.addEventListener('click', function() {
+                if (searchInput) {
+                    searchInput.value = '';
+                    filterDetailsContent('');
+                    this.classList.add('hidden');
+                    searchInput.focus();
+                }
+            });
+        }
+    }
+
+    function filterDetailsContent(searchTerm) {
+        const subsections = document.querySelectorAll('.candidate-subsection');
+        let visibleSections = 0;
+
+        subsections.forEach(subsection => {
+            const subsectionText = subsection.textContent.toLowerCase();
+            const shouldShow = !searchTerm || subsectionText.includes(searchTerm);
+            
+            if (shouldShow) {
+                subsection.style.display = 'block';
+                visibleSections++;
+                
+                // Also filter individual fields within visible subsections
+                const fields = subsection.querySelectorAll('.candidate-field');
+                fields.forEach(field => {
+                    const fieldText = field.textContent.toLowerCase();
+                    const fieldShouldShow = !searchTerm || fieldText.includes(searchTerm);
+                    field.style.display = fieldShouldShow ? 'block' : 'none';
+                });
+            } else {
+                subsection.style.display = 'none';
+            }
+        });
+
+        updateVisibleSectionsCount(visibleSections, subsections.length);
+    }
+
+    function updateVisibleSectionsCount(visible = null, total = null) {
+        const countElement = document.getElementById('visible-sections-count');
+        if (countElement) {
+            if (visible === null) {
+                const subsections = document.querySelectorAll('.candidate-subsection');
+                visible = subsections.length;
+                total = subsections.length;
+            }
+            
+            if (visible === total) {
+                countElement.textContent = `Showing all ${total} sections`;
+            } else {
+                countElement.textContent = `Showing ${visible} of ${total} sections`;
             }
         }
-        modal.classList.remove('hidden');
+    }
+
+    function initializePrintFunctionality() {
+        const printButton = document.getElementById('print-details-btn');
+        if (printButton) {
+            printButton.addEventListener('click', function() {
+                printCandidateDetails();
+            });
+        }
+    }
+
+    function printCandidateDetails() {
+        const modalContent = document.getElementById('modal-body-content');
+        const candidateName = document.querySelector('.candidate-subsection .candidate-field span')?.textContent || 'Candidate';
+        
+        if (modalContent) {
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>${candidateName} - Details</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
+                        .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+                        .subsection { margin-bottom: 25px; page-break-inside: avoid; }
+                        .subsection-header { font-size: 18px; font-weight: bold; color: #333; margin-bottom: 15px; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
+                        .fields-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; }
+                        .field { border: 1px solid #e0e0e0; padding: 10px; border-radius: 4px; }
+                        .field-label { font-weight: bold; font-size: 12px; color: #666; text-transform: uppercase; margin-bottom: 5px; }
+                        .field-value { font-size: 14px; color: #333; }
+                        .status-badge { padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+                        .resume-link { color: #0066cc; text-decoration: none; }
+                        @media print { 
+                            body { margin: 0; } 
+                            .subsection { page-break-inside: avoid; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>Candidate Details: ${candidateName}</h1>
+                        <p>Generated on ${new Date().toLocaleString()}</p>
+                    </div>
+                    ${modalContent.innerHTML.replace(/candidate-subsection/g, 'subsection')
+                        .replace(/candidate-field/g, 'field')
+                        .replace(/subsection-header/g, 'subsection-header')
+                        .replace(/text-sm font-semibold text-gray-700 mb-2 uppercase tracking-wide/g, 'field-label')
+                        .replace(/text-gray-900 font-medium/g, 'field-value')
+                        .replace(/grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4/g, 'fields-grid')}
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            printWindow.focus();
+            setTimeout(() => {
+                printWindow.print();
+                printWindow.close();
+            }, 250);
+        }
     }
 
     async function handleStatusChange(event) {
