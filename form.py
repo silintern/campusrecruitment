@@ -1,244 +1,378 @@
 #!/usr/bin/env python3
 """
-Separate Flask backend for the Campus Recruitment Form
-Runs on port 5001 and handles form submissions
+Windows-Compatible Flask Backend for Campus Recruitment Form
+Runs on port 5001 and handles form submissions with proper error handling
 """
 
 import os
+import sys
 import sqlite3
 import traceback
+import platform
+import requests
 from datetime import datetime
 from collections import defaultdict
-from flask import Flask, request, jsonify, render_template, send_from_directory
+from flask import Flask, request, jsonify, render_template, send_from_directory, redirect, url_for
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
+# Windows path handling
+def get_windows_path(path):
+    """Convert path to Windows-compatible format"""
+    if platform.system().lower() == 'windows':
+        return path.replace('/', '\\')
+    return path
+
+# Initialize Flask app
 app = Flask(__name__, 
            template_folder='campus',
-           static_folder='campus/static')
+           static_folder='campus')
 CORS(app)
 
 # Configuration
-UPLOAD_FOLDER = 'campus/uploads'
-ALLOWED_EXTENSIONS = {'pdf'}
-MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5MB
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+UPLOAD_FOLDER = os.path.join(BASE_DIR, 'campus', 'uploads')
+DASHBOARD_DB_PATH = os.path.join(BASE_DIR, 'dashboard', 'recruitment_final.db')
+ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx'}
+MAX_CONTENT_LENGTH = 10 * 1024 * 1024  # 10MB
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
+app.config['SECRET_KEY'] = 'campus-recruitment-2024'
 
-# Ensure upload directory exists
+# Ensure directories exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(os.path.dirname(DASHBOARD_DB_PATH), exist_ok=True)
+
+print(f"🚀 Form Backend Starting...")
+print(f"📁 Base Directory: {BASE_DIR}")
+print(f"📁 Upload Folder: {UPLOAD_FOLDER}")
+print(f"📁 Database Path: {DASHBOARD_DB_PATH}")
+print(f"🖥️  Platform: {platform.system()}")
 
 def allowed_file(filename):
+    """Check if file extension is allowed"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def get_db_conn():
-    """Connect to the main dashboard database"""
-    conn = sqlite3.connect('dashboard/recruitment_final.db')
-    conn.row_factory = sqlite3.Row
-    return conn
+    """Connect to the dashboard database with proper error handling"""
+    try:
+        if not os.path.exists(DASHBOARD_DB_PATH):
+            print(f"⚠️  Database not found at {DASHBOARD_DB_PATH}")
+            # Create basic database structure
+            conn = sqlite3.connect(DASHBOARD_DB_PATH)
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS applications (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT,
+                    email TEXT,
+                    phone TEXT,
+                    position TEXT,
+                    location TEXT,
+                    qualification TEXT,
+                    cv_resume_path TEXT,
+                    submission_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    status TEXT DEFAULT 'Pending'
+                )
+            ''')
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS form_config (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    field_name TEXT NOT NULL,
+                    field_type TEXT NOT NULL,
+                    subsection TEXT,
+                    field_order INTEGER DEFAULT 0,
+                    is_required BOOLEAN DEFAULT 0,
+                    options TEXT,
+                    validations TEXT
+                )
+            ''')
+            conn.commit()
+            print("✅ Created basic database structure")
+        else:
+            conn = sqlite3.connect(DASHBOARD_DB_PATH)
+            
+        conn.row_factory = sqlite3.Row
+        return conn
+    except Exception as e:
+        print(f"❌ Database connection error: {e}")
+        return None
+
+def test_dashboard_connection():
+    """Test connection to dashboard backend"""
+    try:
+        response = requests.get('http://127.0.0.1:5000/api/health', timeout=5)
+        return response.status_code == 200
+    except:
+        return False
 
 def get_form_config_from_dashboard():
-    """Fetch form configuration from the dashboard backend"""
-    import requests
+    """Fetch form configuration from dashboard backend"""
     try:
-        response = requests.get('http://127.0.0.1:5000/api/public/form-config')
+        if not test_dashboard_connection():
+            print("⚠️  Dashboard backend not available, using direct database access")
+            return None
+            
+        response = requests.get('http://127.0.0.1:5000/api/public/form-config', timeout=10)
         if response.ok:
+            print("✅ Form config loaded from dashboard backend")
             return response.json()
         else:
-            print(f"Error fetching form config: {response.status_code}")
-            return {}
+            print(f"⚠️  Dashboard API error: {response.status_code}")
+            return None
     except Exception as e:
-        print(f"Error connecting to dashboard backend: {e}")
-        # Fallback: get directly from database
-        return get_form_config_from_db()
+        print(f"⚠️  Error connecting to dashboard: {e}")
+        return None
 
 def get_form_config_from_db():
     """Fallback: Get form configuration directly from database"""
-    conn = get_db_conn()
     try:
-        # Get section order from form_sections table if it exists
-        section_order = {}
-        try:
-            sections_query = conn.execute("SELECT name, section_order FROM form_sections ORDER BY section_order ASC").fetchall()
-            section_order = {row['name']: row['section_order'] for row in sections_query}
-        except:
-            pass  # Table doesn't exist yet
+        conn = get_db_conn()
+        if not conn:
+            return {"error": "Database connection failed"}
+            
+        cursor = conn.cursor()
         
-        fields_query = conn.execute("SELECT * FROM form_config ORDER BY field_order ASC").fetchall()
+        # Get form fields
+        fields = cursor.execute('''
+            SELECT field_name, field_type, subsection, field_order, is_required, options, validations
+            FROM form_config 
+            ORDER BY subsection, field_order
+        ''').fetchall()
         
-        # Group fields by subsection for easier rendering
-        subsections = defaultdict(list)
-        for field in fields_query:
-            subsections[field['subsection']].append(dict(field))
+        # Get sections
+        sections = cursor.execute('''
+            SELECT DISTINCT subsection 
+            FROM form_config 
+            WHERE subsection IS NOT NULL AND subsection != ''
+            ORDER BY MIN(field_order)
+        ''').fetchall()
         
-        # Order subsections by section_order if available, otherwise by first field's order
-        if section_order:
-            # Sort by section order, putting unordered sections at the end
-            subsection_order = sorted(subsections.keys(), key=lambda k: section_order.get(k, 9999))
-        else:
-            # Fallback: maintain the order of subsections based on the first field's order in each
-            subsection_order = sorted(subsections.keys(), key=lambda k: subsections[k][0]['field_order'])
+        # Organize data
+        form_config = defaultdict(list)
+        for field in fields:
+            section = field['subsection'] or 'General Information'
+            form_config[section].append({
+                'field_name': field['field_name'],
+                'field_type': field['field_type'],
+                'field_order': field['field_order'] or 0,
+                'is_required': bool(field['is_required']),
+                'options': field['options'] or '',
+                'validations': field['validations'] or '{}'
+            })
         
-        ordered_subsections = {k: subsections[k] for k in subsection_order}
-        return ordered_subsections
+        conn.close()
+        print("✅ Form config loaded from database")
+        return dict(form_config)
         
     except Exception as e:
-        print(f"Error fetching form config from database: {e}")
-        return {}
-    finally:
-        conn.close()
+        print(f"❌ Database error: {e}")
+        return {"error": f"Database error: {str(e)}"}
 
 @app.route('/')
 def index():
-    """Serve the login page"""
-    return render_template('login.html')
-
-@app.route('/login.html')
-def login():
-    """Serve the login page"""
-    return render_template('login.html')
+    """Redirect to recruitment form"""
+    return redirect(url_for('recruitment_form'))
 
 @app.route('/recruitment-form-dynamic.html')
 def recruitment_form():
-    """Serve the dynamic recruitment form"""
+    """Serve the recruitment form"""
     return render_template('recruitment-form-dynamic.html')
+
+@app.route('/login.html')
+def login_form():
+    """Serve the login form"""
+    return render_template('login.html')
 
 @app.route('/api/public/form-config', methods=['GET'])
 def get_public_form_config():
-    """Public endpoint to fetch the form structure for applicants"""
+    """Public endpoint to fetch form structure"""
     try:
-        # First try to get from dashboard backend
+        print("📋 Form config requested")
+        
+        # Try dashboard backend first
         form_config = get_form_config_from_dashboard()
         
-        # If that fails, get directly from database
+        # Fallback to direct database access
         if not form_config:
             form_config = get_form_config_from_db()
         
+        if not form_config or 'error' in form_config:
+            # Return default form structure
+            default_config = {
+                "Personal Information": [
+                    {"field_name": "name", "field_type": "text", "is_required": True, "field_order": 1},
+                    {"field_name": "email", "field_type": "email", "is_required": True, "field_order": 2},
+                    {"field_name": "phone", "field_type": "tel", "is_required": True, "field_order": 3}
+                ],
+                "Application Details": [
+                    {"field_name": "position", "field_type": "text", "is_required": True, "field_order": 4},
+                    {"field_name": "location", "field_type": "text", "is_required": True, "field_order": 5},
+                    {"field_name": "qualification", "field_type": "text", "is_required": True, "field_order": 6}
+                ],
+                "Documents": [
+                    {"field_name": "cv-resume", "field_type": "file", "is_required": True, "field_order": 7}
+                ]
+            }
+            print("✅ Using default form configuration")
+            return jsonify(default_config)
+        
         return jsonify(form_config)
+        
     except Exception as e:
-        print(f"Error in get_public_form_config: {e}")
+        print(f"❌ Error in get_public_form_config: {e}")
+        print(traceback.format_exc())
         return jsonify({"error": "Unable to load form configuration"}), 500
 
 @app.route('/api/submit_application', methods=['POST'])
 def api_submit_application():
-    """Handle form submission"""
+    """Handle form submission with comprehensive error handling"""
     try:
-        # Validate file upload
-        if 'cv-resume' not in request.files:
-            return jsonify({"error": "No resume file provided"}), 400
+        print("📝 Form submission received")
+        print(f"Form data keys: {list(request.form.keys())}")
+        print(f"Files: {list(request.files.keys())}")
         
-        file = request.files['cv-resume']
-        if file.filename == '':
-            return jsonify({"error": "No file selected"}), 400
-
-        if not (file and allowed_file(file.filename)):
-            return jsonify({"error": "Invalid file type. Only PDF files are allowed."}), 400
-
-        # Check file size
-        if len(file.read()) > MAX_CONTENT_LENGTH:
-            return jsonify({"error": "File size exceeds 5MB limit"}), 400
-        
-        # Reset file pointer
-        file.seek(0)
-
-        # Save file
-        filename = secure_filename(file.filename)
-        email = request.form.get('email', 'unknown')
-        unique_filename = f"{secure_filename(email)}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{filename}"
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
-        file.save(file_path)
-
-        # Prepare application data
-        application_data = {
-            'cv_resume_path': file_path,
-            'submission_date': datetime.now().isoformat()
-        }
-        
-        # Add all form fields
-        for key, value in request.form.items():
-            if key != 'cv-resume':  # Skip file field
-                application_data[key] = value
-
-        # Submit to dashboard backend
-        import requests
-        try:
-            dashboard_response = requests.post(
-                'http://127.0.0.1:5000/api/submit_application',
-                files={'cv-resume': open(file_path, 'rb')},
-                data=request.form
-            )
-            
-            if dashboard_response.ok:
-                return jsonify({"success": True, "message": "Application submitted successfully!"})
-            else:
-                error_data = dashboard_response.json() if dashboard_response.headers.get('content-type') == 'application/json' else {}
-                return jsonify({"error": error_data.get("error", "Failed to submit application")}), dashboard_response.status_code
+        # Handle file upload
+        file_path = None
+        if 'cv-resume' in request.files:
+            file = request.files['cv-resume']
+            if file and file.filename and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"{timestamp}_{filename}"
+                file_path = os.path.join(UPLOAD_FOLDER, filename)
                 
-        except Exception as e:
-            print(f"Error submitting to dashboard backend: {e}")
-            # Fallback: save directly to database
-            return save_application_to_db(application_data)
-
+                try:
+                    file.save(file_path)
+                    print(f"✅ File saved: {file_path}")
+                except Exception as e:
+                    print(f"❌ File save error: {e}")
+                    return jsonify({"error": "Failed to save uploaded file"}), 500
+            else:
+                print("⚠️  No valid file uploaded")
+        
+        # Prepare application data
+        application_data = {}
+        for key, value in request.form.items():
+            if key != 'cv-resume':
+                application_data[key] = value
+        
+        application_data['cv_resume_path'] = file_path
+        application_data['submission_date'] = datetime.now().isoformat()
+        application_data['status'] = 'Pending'
+        
+        print(f"Application data: {application_data}")
+        
+        # Try to submit to dashboard backend
+        dashboard_success = False
+        if test_dashboard_connection():
+            try:
+                files = {}
+                if file_path and os.path.exists(file_path):
+                    files['cv-resume'] = open(file_path, 'rb')
+                
+                dashboard_response = requests.post(
+                    'http://127.0.0.1:5000/api/submit_application',
+                    files=files,
+                    data=request.form,
+                    timeout=30
+                )
+                
+                if files:
+                    files['cv-resume'].close()
+                
+                if dashboard_response.ok:
+                    print("✅ Application submitted to dashboard backend")
+                    dashboard_success = True
+                else:
+                    print(f"⚠️  Dashboard submission failed: {dashboard_response.status_code}")
+                    print(f"Response: {dashboard_response.text}")
+                    
+            except Exception as e:
+                print(f"⚠️  Dashboard submission error: {e}")
+        
+        # Fallback: Save directly to database
+        if not dashboard_success:
+            print("💾 Saving directly to database...")
+            result = save_application_to_db(application_data)
+            if result.get('success'):
+                print("✅ Application saved to database")
+            else:
+                print(f"❌ Database save failed: {result.get('error')}")
+                return jsonify(result), 500
+        
+        return jsonify({
+            "success": True, 
+            "message": "Application submitted successfully!",
+            "application_id": "APP_" + datetime.now().strftime("%Y%m%d_%H%M%S")
+        })
+        
     except Exception as e:
-        print(f"Error in api_submit_application: {e}")
+        print(f"❌ Submission error: {e}")
         print(traceback.format_exc())
         return jsonify({"error": "An error occurred while processing your application"}), 500
 
 def save_application_to_db(application_data):
-    """Fallback: Save application directly to database"""
-    conn = get_db_conn()
+    """Save application directly to database"""
     try:
-        # Get form configuration to build dynamic insert
-        form_config = get_form_config_from_db()
+        conn = get_db_conn()
+        if not conn:
+            return {"error": "Database connection failed"}
         
-        # Build column names and values
-        columns = ['submission_date']
-        values = [application_data.get('submission_date')]
-        placeholders = ['?']
+        # Extract common fields
+        name = application_data.get('name', '')
+        email = application_data.get('email', '')
+        phone = application_data.get('phone', '')
+        position = application_data.get('position', '')
+        location = application_data.get('location', '')
+        qualification = application_data.get('qualification', '')
+        cv_path = application_data.get('cv_resume_path', '')
+        submission_date = application_data.get('submission_date', datetime.now().isoformat())
+        status = application_data.get('status', 'Pending')
         
-        # Add form fields
-        for section_fields in form_config.values():
-            for field in section_fields:
-                field_name = field['name']
-                if field_name in application_data:
-                    columns.append(field_name)
-                    values.append(application_data[field_name])
-                    placeholders.append('?')
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO applications 
+            (name, email, phone, position, location, qualification, cv_resume_path, submission_date, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (name, email, phone, position, location, qualification, cv_path, submission_date, status))
         
-        # Add resume path
-        if 'cv_resume_path' in application_data:
-            columns.append('resume_path')
-            values.append(application_data['cv_resume_path'])
-            placeholders.append('?')
-        
-        # Insert into database
-        query = f"INSERT INTO applications ({', '.join(columns)}) VALUES ({', '.join(placeholders)})"
-        conn.execute(query, values)
+        application_id = cursor.lastrowid
         conn.commit()
+        conn.close()
         
-        return jsonify({"success": True, "message": "Application submitted successfully!"})
+        return {"success": True, "application_id": application_id}
         
     except Exception as e:
-        print(f"Error saving to database: {e}")
-        print(traceback.format_exc())
-        return jsonify({"error": "Failed to save application"}), 500
-    finally:
-        conn.close()
+        print(f"❌ Database save error: {e}")
+        return {"error": f"Database error: {str(e)}"}
+
+@app.route('/uploads/<filename>')
+def serve_uploads(filename):
+    """Serve uploaded files"""
+    return send_from_directory(UPLOAD_FOLDER, filename)
 
 @app.route('/static/<path:filename>')
 def serve_static(filename):
     """Serve static files"""
-    return send_from_directory('campus/static', filename)
+    return send_from_directory('campus', filename)
 
-@app.route('/uploads/<path:filename>')
-def serve_uploads(filename):
-    """Serve uploaded files (for admin access)"""
-    return send_from_directory(UPLOAD_FOLDER, filename)
+@app.route('/api/health')
+def health_check():
+    """Health check endpoint"""
+    return jsonify({
+        "status": "healthy",
+        "service": "form-backend",
+        "port": 5001,
+        "platform": platform.system(),
+        "database": "connected" if get_db_conn() else "disconnected",
+        "dashboard_connection": "connected" if test_dashboard_connection() else "disconnected"
+    })
 
+# Error handlers
 @app.errorhandler(413)
 def too_large(e):
-    return jsonify({"error": "File too large. Maximum size is 5MB."}), 413
+    return jsonify({"error": "File too large. Maximum size is 10MB."}), 413
 
 @app.errorhandler(404)
 def not_found(e):
@@ -249,14 +383,20 @@ def internal_error(e):
     return jsonify({"error": "Internal server error"}), 500
 
 if __name__ == '__main__':
-    print("🚀 Campus Recruitment Form Server Starting...")
-    print("📋 Form available at: http://127.0.0.1:5001")
-    print("🔗 Connected to dashboard at: http://127.0.0.1:5000")
-    print("📁 Upload folder: " + os.path.abspath(UPLOAD_FOLDER))
+    print("🌐 Starting Form Backend Server...")
+    print("📍 Access points:")
+    print("   📝 Application Form: http://127.0.0.1:5001")
+    print("   🔐 Login Form: http://127.0.0.1:5001/login.html")
+    print("   ❤️  Health Check: http://127.0.0.1:5001/api/health")
     
-    app.run(
-        host='127.0.0.1',
-        port=5001,
-        debug=True,
-        threaded=True
-    )
+    try:
+        app.run(
+            host='127.0.0.1',
+            port=5001,
+            debug=True,
+            threaded=True,
+            use_reloader=False  # Prevent double startup on Windows
+        )
+    except Exception as e:
+        print(f"❌ Failed to start server: {e}")
+        input("Press Enter to exit...")

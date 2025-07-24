@@ -365,7 +365,7 @@
             try {
                 showLoadingState();
 
-                const response = await fetch('http://127.0.0.1:5001/api/public/form-config');
+                const response = await fetch('/api/public/form-config');
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
@@ -1094,7 +1094,7 @@
 
                 try {
                     const formData = new FormData(event.target);
-                    const apiEndpoint = 'http://127.0.0.1:5001/api/submit_application';
+                    const apiEndpoint = '/api/submit_application';
 
                     const response = await fetch(apiEndpoint, {
                         method: 'POST',
