@@ -764,6 +764,8 @@ def reorder_form_sections():
     if session.get('user_role') != 'admin': return jsonify({"error": "Admin access required."}), 403
     
     section_orders = request.json.get('sections', [])
+    print(f"--- REORDER SECTIONS REQUEST ---")
+    print(f"Sections to reorder: {section_orders}")
     
     if not section_orders:
         return jsonify({"error": "No sections provided for reordering."}), 400
@@ -784,14 +786,34 @@ def reorder_form_sections():
         
         cursor = conn.cursor()
         for order, section_name in enumerate(section_orders):
-            # Insert or update section order
-            cursor.execute("""
-                INSERT INTO form_sections (name, section_order, icon)
-                VALUES (?, ?, 'folder')
-                ON CONFLICT(name) DO UPDATE SET section_order = excluded.section_order
-            """, (section_name, order + 1))
+            print(f"Processing section '{section_name}' with order {order + 1}")
+            
+            # Check if section exists, then insert or update
+            existing = cursor.execute("SELECT id FROM form_sections WHERE name = ?", (section_name,)).fetchone()
+            
+            if existing:
+                print(f"Updating existing section '{section_name}' to order {order + 1}")
+                # Update existing section order
+                cursor.execute("""
+                    UPDATE form_sections 
+                    SET section_order = ?
+                    WHERE name = ?
+                """, (order + 1, section_name))
+            else:
+                print(f"Inserting new section '{section_name}' with order {order + 1}")
+                # Insert new section with order
+                cursor.execute("""
+                    INSERT INTO form_sections (name, section_order, icon, description)
+                    VALUES (?, ?, 'folder', '')
+                """, (section_name, order + 1))
         
         conn.commit()
+        print("--- REORDER COMPLETE ---")
+        
+        # Verify the changes
+        updated_sections = cursor.execute("SELECT name, section_order FROM form_sections ORDER BY section_order").fetchall()
+        print(f"Updated sections: {[(row['name'], row['section_order']) for row in updated_sections]}")
+        
         return jsonify({"success": True, "message": "Sections reordered successfully."})
         
     except Exception as e:
