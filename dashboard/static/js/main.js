@@ -826,29 +826,64 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!fieldListBody) return;
         fieldListBody.innerHTML = '';
 
-        fields.forEach(field => {
+        fields.forEach((field, index) => {
             const tr = document.createElement('tr');
+            tr.className = 'hover:bg-gray-50 transition-colors duration-200';
+            
             const fieldTypeBadge = `<span class="field-type-badge field-type-${field.type}">${field.type}</span>`;
+            const coreIndicator = field.is_core ? '<i class="fas fa-lock text-gray-400 ml-1" title="Core field - cannot be deleted"></i>' : '';
+            
             tr.innerHTML = `
-                <td class="py-2 px-4 text-center">${field.field_order || 0}</td>
-                <td class="py-2 px-4 font-mono text-sm">${field.name}</td>
-                <td class="py-2 px-4">${field.label}</td>
-                <td class="py-2 px-4">${field.subsection || 'N/A'}</td>
-                <td class="py-2 px-4">${fieldTypeBadge}</td>
-                <td class="py-2 px-4 text-center">
-                    <input type="checkbox" ${field.required ? 'checked' : ''} 
-                           class="custom-checkbox field-required-toggle" 
-                           data-field-id="${field.id}" ${field.is_core ? 'disabled' : ''}>
+                <td class="py-4 px-4 text-center">
+                    <span class="inline-flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-800 rounded-full text-sm font-semibold">
+                        ${field.field_order || index + 1}
+                    </span>
                 </td>
-                <td class="py-2 px-4">
-                    <div class="flex space-x-2">
-                        <button class="edit-field-btn text-blue-500 hover:underline text-sm" data-field-id="${field.id}">Edit</button>
-                        ${!field.is_core ? `<button class="delete-field-btn text-red-500 hover:underline text-sm" data-field-id="${field.id}">Delete</button>` : '<span class="text-gray-400 text-sm">Core</span>'}
+                <td class="py-4 px-4">
+                    <div class="flex items-center">
+                        <code class="bg-gray-100 px-2 py-1 rounded text-sm font-mono text-gray-800">${field.name}</code>
+                        ${coreIndicator}
+                    </div>
+                </td>
+                <td class="py-4 px-4">
+                    <span class="font-medium text-gray-900">${field.label}</span>
+                </td>
+                <td class="py-4 px-4">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                        <i class="fas fa-folder mr-1"></i>${field.subsection || 'N/A'}
+                    </span>
+                </td>
+                <td class="py-4 px-4">${fieldTypeBadge}</td>
+                <td class="py-4 px-4 text-center">
+                    <label class="inline-flex items-center cursor-pointer ${field.is_core ? 'opacity-50 cursor-not-allowed' : ''}">
+                        <input type="checkbox" ${field.required ? 'checked' : ''} 
+                               class="sr-only field-required-toggle" 
+                               data-field-id="${field.id}" ${field.is_core ? 'disabled' : ''}>
+                        <div class="toggle-switch ${field.is_core ? 'pointer-events-none' : ''}"></div>
+                    </label>
+                </td>
+                <td class="py-4 px-4">
+                    <div class="flex items-center justify-center space-x-2">
+                        <button class="edit-field-btn inline-flex items-center px-3 py-1.5 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors duration-200 text-sm font-medium" data-field-id="${field.id}">
+                            <i class="fas fa-edit mr-1"></i>Edit
+                        </button>
+                        ${!field.is_core ? 
+                            `<button class="delete-field-btn inline-flex items-center px-3 py-1.5 bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition-colors duration-200 text-sm font-medium" data-field-id="${field.id}">
+                                <i class="fas fa-trash mr-1"></i>Delete
+                            </button>` : 
+                            '<span class="inline-flex items-center px-3 py-1.5 bg-gray-100 text-gray-500 rounded-md text-sm font-medium"><i class="fas fa-shield-alt mr-1"></i>Protected</span>'
+                        }
                     </div>
                 </td>
             `;
             fieldListBody.appendChild(tr);
         });
+
+        // Update fields count
+        const fieldsCount = document.getElementById('fields-count');
+        if (fieldsCount) {
+            fieldsCount.textContent = `${fields.length} fields`;
+        }
 
         // Add event listeners
         document.querySelectorAll('.delete-field-btn').forEach(btn => btn.addEventListener('click', handleDeleteField));
@@ -925,41 +960,55 @@ document.addEventListener('DOMContentLoaded', function() {
 
         fields.forEach(field => {
             const div = document.createElement('div');
-            div.className = 'validation-field';
+            div.className = 'bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-6 border border-gray-200 shadow-sm';
             const validations = field.validations ? JSON.parse(field.validations) : {};
             
             div.innerHTML = `
-                <div class="flex justify-between items-start mb-3">
+                <div class="flex justify-between items-start mb-4">
                     <div>
-                        <h5 class="font-medium">${field.label}</h5>
-                        <p class="text-sm text-gray-500">${field.name} (${field.type})</p>
+                        <h5 class="text-lg font-bold text-gray-800 flex items-center">
+                            <i class="fas fa-edit mr-2 text-blue-600"></i>${field.label}
+                        </h5>
+                        <p class="text-sm text-gray-600 mt-1">
+                            <code class="bg-white px-2 py-1 rounded text-xs">${field.name}</code>
+                            <span class="mx-2">•</span>
+                            <span class="field-type-badge field-type-${field.type}">${field.type}</span>
+                        </p>
                     </div>
-                    <span class="field-type-badge field-type-${field.type}">${field.type}</span>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Min Length</label>
-                        <input type="number" class="modal-input validation-input" 
+                    <div class="form-group">
+                        <label class="form-label">
+                            <i class="fas fa-ruler mr-2 text-green-500"></i>Min Length
+                        </label>
+                        <input type="number" class="form-input-enhanced validation-input" 
                                data-field-id="${field.id}" data-rule="minLength" 
-                               value="${validations.minLength || ''}" placeholder="e.g., 3">
+                               value="${validations.minLength || ''}" placeholder="3">
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Max Length</label>
-                        <input type="number" class="modal-input validation-input" 
+                    <div class="form-group">
+                        <label class="form-label">
+                            <i class="fas fa-ruler-combined mr-2 text-orange-500"></i>Max Length
+                        </label>
+                        <input type="number" class="form-input-enhanced validation-input" 
                                data-field-id="${field.id}" data-rule="maxLength" 
-                               value="${validations.maxLength || ''}" placeholder="e.g., 50">
+                               value="${validations.maxLength || ''}" placeholder="50">
                     </div>
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Pattern (RegEx)</label>
-                        <input type="text" class="modal-input validation-input" 
+                    <div class="md:col-span-2 form-group">
+                        <label class="form-label">
+                            <i class="fas fa-code mr-2 text-purple-500"></i>Pattern (RegEx)
+                        </label>
+                        <input type="text" class="form-input-enhanced validation-input font-mono" 
                                data-field-id="${field.id}" data-rule="pattern" 
-                               value="${validations.pattern || ''}" placeholder="e.g., ^[0-9]+$">
+                               value="${validations.pattern || ''}" placeholder="^[0-9]+$">
+                        <p class="text-xs text-gray-500 mt-1">Regular expression pattern for validation</p>
                     </div>
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Custom Error Message</label>
-                        <input type="text" class="modal-input validation-input" 
+                    <div class="md:col-span-2 form-group">
+                        <label class="form-label">
+                            <i class="fas fa-exclamation-triangle mr-2 text-red-500"></i>Custom Error Message
+                        </label>
+                        <input type="text" class="form-input-enhanced validation-input" 
                                data-field-id="${field.id}" data-rule="errorMessage" 
-                               value="${validations.errorMessage || ''}" placeholder="Custom validation error message">
+                               value="${validations.errorMessage || ''}" placeholder="Please enter a valid value">
                     </div>
                 </div>
             `;
@@ -1266,20 +1315,32 @@ document.addEventListener('DOMContentLoaded', function() {
             tab.addEventListener('click', () => {
                 // Remove active class from all tabs
                 tabs.forEach(t => {
-                    t.classList.remove('active', 'border-blue-500', 'text-blue-600');
-                    t.classList.add('border-transparent', 'text-gray-500');
+                    t.classList.remove('active');
                 });
 
                 // Add active class to clicked tab
-                tab.classList.add('active', 'border-blue-500', 'text-blue-600');
-                tab.classList.remove('border-transparent', 'text-gray-500');
+                tab.classList.add('active');
 
-                // Hide all tab contents
-                contents.forEach(content => content.classList.add('hidden'));
+                // Hide all tab contents with animation
+                contents.forEach(content => {
+                    content.style.opacity = '0';
+                    setTimeout(() => {
+                        content.classList.add('hidden');
+                    }, 150);
+                });
 
-                // Show corresponding content
+                // Show corresponding content with animation
                 const tabId = tab.id.replace('tab-', 'tab-content-');
-                document.getElementById(tabId)?.classList.remove('hidden');
+                const targetContent = document.getElementById(tabId);
+                if (targetContent) {
+                    setTimeout(() => {
+                        targetContent.classList.remove('hidden');
+                        targetContent.style.opacity = '0';
+                        setTimeout(() => {
+                            targetContent.style.opacity = '1';
+                        }, 50);
+                    }, 150);
+                }
             });
         });
     }
@@ -1377,6 +1438,11 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Initialize form config tabs
         initializeFormConfigTabs();
+        
+        // Add refresh functionality
+        document.getElementById('refresh-fields')?.addEventListener('click', () => {
+            openFormConfigModal();
+        });
 
         const columnSelectorBtn = document.getElementById('column-selector-btn');
         const columnSelectorDropdown = document.getElementById('column-selector-dropdown');
