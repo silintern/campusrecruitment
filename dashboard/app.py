@@ -479,25 +479,53 @@ def update_form_field(field_id):
         field = conn.execute("SELECT * FROM form_config WHERE id = ?", (field_id,)).fetchone()
         if not field: return jsonify({"error": "Field not found."}), 404
 
-        # Update field configuration
+        # Update field configuration - only update provided fields
         cursor = conn.cursor()
-        cursor.execute("""
-            UPDATE form_config 
-            SET label = ?, type = ?, subsection = ?, options = ?, required = ?, validations = ?
-            WHERE id = ?
-        """, (
-            data.get('label', field['label']),
-            data.get('type', field['type']),
-            data.get('subsection', field['subsection']),
-            data.get('options', field['options']),
-            data.get('required', field['required']),
-            data.get('validations', field.get('validations', '{}')),
-            field_id
-        ))
+        
+        # Build dynamic query based on provided data
+        update_fields = []
+        update_values = []
+        
+        if 'label' in data:
+            update_fields.append('label = ?')
+            update_values.append(data['label'])
+        
+        if 'type' in data:
+            update_fields.append('type = ?')
+            update_values.append(data['type'])
+            
+        if 'subsection' in data:
+            update_fields.append('subsection = ?')
+            update_values.append(data['subsection'])
+            
+        if 'options' in data:
+            update_fields.append('options = ?')
+            update_values.append(data['options'])
+            
+        if 'required' in data:
+            update_fields.append('required = ?')
+            update_values.append(data['required'])
+            
+        if 'validations' in data:
+            update_fields.append('validations = ?')
+            update_values.append(data['validations'])
+        
+        if not update_fields:
+            return jsonify({"error": "No fields to update."}), 400
+            
+        # Add field_id to the end of values
+        update_values.append(field_id)
+        
+        query = f"UPDATE form_config SET {', '.join(update_fields)} WHERE id = ?"
+        cursor.execute(query, update_values)
         conn.commit()
         return jsonify({"success": True, "message": "Field updated successfully."})
     except Exception as e:
-        print(f"--- API ERROR in /api/form/config [PUT] ---\n{traceback.format_exc()}")
+        print(f"--- API ERROR in /api/form/config [PUT] ---")
+        print(f"Field ID: {field_id}")
+        print(f"Request data: {data}")
+        print(f"Error: {str(e)}")
+        print(f"Traceback:\n{traceback.format_exc()}")
         return jsonify({"error": "Server error while updating field.", "message": str(e)}), 500
     finally:
         conn.close()
